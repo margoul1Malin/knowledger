@@ -16,7 +16,8 @@ import {
   SunIcon,
   MoonIcon,
   Cog6ToothIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -34,6 +35,7 @@ const Navbar = () => {
     { name: 'Articles', href: '/articles', icon: NewspaperIcon },
     { name: 'Vidéos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Formations', href: '/formations', icon: AcademicCapIcon },
+    ...(user?.role === 'NORMAL' ? [{ name: 'Premium', href: '/premium', icon: SparklesIcon }] : []),
     ...(canCreateContent ? [{ name: 'Mon Contenu', href: '/create-content', icon: PencilSquareIcon }] : []),
     ...(isAdmin ? [{ name: 'Administration', href: '/admin', icon: Cog6ToothIcon }] : []),
   ]
@@ -111,6 +113,16 @@ const Navbar = () => {
                 </motion.div>
               </AnimatePresence>
             </button>
+
+            {user?.role === 'NORMAL' && (
+              <Link
+                href="/premium"
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+              >
+                <SparklesIcon className="h-5 w-5" />
+                <span className="font-medium">Devenir Premium</span>
+              </Link>
+            )}
 
             {isAuthenticated ? (
               <div className="relative">
