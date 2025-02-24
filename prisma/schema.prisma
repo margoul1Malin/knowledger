@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  FORMATOR
+  PREMIUM
+  NORMAL
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(NORMAL)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles    Article[]
+  videos      Video[]
+  formations  Formation[]
+}
+
+model Category {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  articles    Article[]
+  videos      Video[]
+  formations  Formation[]
+}
+
+model Article {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  slug        String   @unique
+  imageUrl    String?
+  isPremium   Boolean  @default(false)
+  price       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation(fields: [authorId], references: [id])
+  authorId    String   @db.ObjectId
+  category    Category @relation(fields: [categoryId], references: [id])
+  categoryId  String   @db.ObjectId
+}
+
+model Video {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  videoUrl    String
+  coverImage  String
+  slug        String   @unique
+  isPremium   Boolean  @default(false)
+  price       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User       @relation(fields: [authorId], references: [id])
+  authorId    String     @db.ObjectId
+  category    Category   @relation(fields: [categoryId], references: [id])
+  categoryId  String     @db.ObjectId
+  formations  VideoFormation[]
+}
+
+model Formation {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  content     String
+  slug        String    @unique
+  imageUrl    String
+  isPremium   Boolean   @default(false)
+  price       Float?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    String    @db.ObjectId
+  category    Category  @relation(fields: [categoryId], references: [id])
+  categoryId  String    @db.ObjectId
+  videos      VideoFormation[]
+}
+
+model VideoFormation {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  order       Int
+  coverImage  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  formation   Formation @relation(fields: [formationId], references: [id])
+  formationId String    @db.ObjectId
+  video       Video     @relation(fields: [videoId], references: [id])
+  videoId     String    @db.ObjectId
+
+  @@unique([formationId, videoId])
+  @@unique([formationId, order])
+} 
