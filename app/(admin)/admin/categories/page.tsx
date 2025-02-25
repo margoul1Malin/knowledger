@@ -92,11 +92,20 @@ export default function CategoriesPage() {
         method: 'DELETE',
       })
 
-      if (!res.ok) throw new Error('Erreur lors de la suppression')
-      
-      await fetchCategories()
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Erreur lors de la suppression')
+      }
+
+      const data = await res.json()
+      if (data.success) {
+        await fetchCategories()
+      } else {
+        throw new Error(data.error || 'Erreur lors de la suppression')
+      }
     } catch (error) {
-      console.error(error)
+      console.error('Erreur:', error)
+      alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')
     }
   }
 

@@ -44,4 +44,78 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Non autorisé' }),
+        { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const video = await prisma.video.findUnique({
+      where: { slug: params.slug }
+    })
+
+    if (!video) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Vidéo non trouvée' }),
+        { 
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Supprimer d'abord les relations VideoFormation
+    await prisma.videoFormation.deleteMany({
+      where: { videoId: video.id }
+    })
+
+    // Supprimer les achats liés
+    await prisma.purchase.deleteMany({
+      where: { 
+        contentId: video.id,
+        type: 'video'
+      }
+    })
+
+    // Supprimer la vidéo
+    await prisma.video.delete({
+      where: { id: video.id }
+    })
+
+    return new NextResponse(
+      JSON.stringify({ 
+        message: 'Vidéo supprimée avec succès',
+        success: true 
+      }),
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Erreur lors de la suppression',
+        success: false
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
 } 

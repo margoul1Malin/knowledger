@@ -31,24 +31,81 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    
+    if (!session || session.user.role !== 'ADMIN') {
+      return new NextResponse(
+        JSON.stringify({ error: 'Non autorisé' }),
+        { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
     }
 
+    const params = await paramsPromise
+
+    // Vérifier si la catégorie existe
+    const category = await prisma.category.findUnique({
+      where: { id: params.id }
+    })
+
+    if (!category) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Catégorie non trouvée' }),
+        { 
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Mettre à jour les relations une par une
+    await prisma.article.updateMany({
+      where: { categoryId: params.id },
+      data: { categoryId: null }
+    })
+
+    await prisma.video.updateMany({
+      where: { categoryId: params.id },
+      data: { categoryId: null }
+    })
+
+    await prisma.formation.updateMany({
+      where: { categoryId: params.id },
+      data: { categoryId: null }
+    })
+
+    // Supprimer la catégorie
     await prisma.category.delete({
       where: { id: params.id }
     })
 
-    return NextResponse.json({ message: 'Catégorie supprimée' })
+    return new NextResponse(
+      JSON.stringify({
+        message: 'Catégorie supprimée avec succès',
+        success: true
+      }),
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+
   } catch (error) {
-    console.error(error)
-    return NextResponse.json(
-      { error: 'Erreur lors de la suppression' },
-      { status: 500 }
+    console.error('Erreur lors de la suppression:', error)
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Erreur lors de la suppression',
+        success: false
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     )
   }
 } 
