@@ -1,18 +1,25 @@
-import { notFound } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import prisma from '@/lib/prisma'
+import { Suspense } from 'react'
 import FormationContent from './FormationContent'
+import prisma from '@/lib/prisma'
 
-async function getFormation(slug: string) {
+export default async function FormationPage({
+  params: paramsPromise
+}: {
+  params: { slug: string }
+}) {
+  const params = await paramsPromise
+  
   const formation = await prisma.formation.findUnique({
-    where: { slug },
-    include: {
+    where: { slug: params.slug },
+    include: { 
       author: true,
-      category: true,
       videos: {
         include: {
-          video: true
+          video: {
+            include: {
+              author: true
+            }
+          }
         },
         orderBy: {
           order: 'asc'
@@ -21,17 +28,13 @@ async function getFormation(slug: string) {
     }
   })
 
-  if (!formation) notFound()
-  return formation
-}
+  if (!formation) {
+    return null
+  }
 
-export default async function FormationPage({
-  params
-}: {
-  params: { slug: string }
-}) {
-  const session = await getServerSession(authOptions)
-  const formation = await getFormation(params.slug)
-
-  return <FormationContent formation={formation} session={session} />
+  return (
+    <Suspense fallback={<div>Chargement...</div>}>
+      <FormationContent formation={formation} />
+    </Suspense>
+  )
 } 

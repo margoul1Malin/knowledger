@@ -7,7 +7,7 @@ export default async function middleware(req: NextRequestWithAuth) {
   const isAuthenticated = !!token
 
   // Routes publiques
-  const publicRoutes = ['/', '/login', '/register', '/articles']
+  const publicRoutes = ['/', '/login', '/register']
   if (publicRoutes.includes(req.nextUrl.pathname)) {
     return NextResponse.next()
   }
@@ -36,5 +36,6 @@ export const config = {
     '/profile/:path*',
     '/formations/:path*',
     '/videos/:path*',
+    '/articles/:path*',
   ],
 } 

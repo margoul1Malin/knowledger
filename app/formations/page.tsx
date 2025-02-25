@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma'
 import FormationsList from '@/app/components/formations/FormationsList'
 
-export default async function Formations() {
+export default async function FormationsPage() {
   const formations = await prisma.formation.findMany({
     include: {
       author: true
@@ -19,7 +19,7 @@ export default async function Formations() {
             Formations
           </h1>
           <p className="text-muted-foreground">
-            Des parcours complets pour maîtriser votre domaine
+            Développez vos compétences avec nos formations complètes
           </p>
         </div>
 
