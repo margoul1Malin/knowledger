@@ -3,13 +3,28 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import prisma from '@/lib/prisma'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not defined')
+}
+
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error('STRIPE_WEBHOOK_SECRET is not defined')
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16'
 })
 
 export async function POST(req: Request) {
   const body = await req.text()
-  const signature = headers().get('stripe-signature')!
+  const signature = headers().get('stripe-signature')
+
+  if (!signature) {
+    return NextResponse.json(
+      { error: 'No signature' },
+      { status: 400 }
+    )
+  }
 
   let event: Stripe.Event
 
@@ -19,32 +34,101 @@ export async function POST(req: Request) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     )
-  } catch (error) {
+  } catch (err) {
+    console.error('Erreur webhook:', err)
     return NextResponse.json(
-      { error: 'Webhook signature verification failed' },
+      { error: 'Webhook error' },
       { status: 400 }
     )
   }
 
-  const session = event.data.object as Stripe.Checkout.Session
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object as Stripe.Checkout.Session
 
-  switch (event.type) {
-    case 'checkout.session.completed':
-      // Mettre à jour le rôle de l'utilisateur
-      await prisma.user.update({
-        where: { id: session.metadata?.userId },
-        data: { role: 'PREMIUM' }
-      })
-      break
+        if (session.mode === 'subscription') {
+          // Gestion abonnement Premium existante
+          await prisma.user.update({
+            where: { id: session.metadata?.userId },
+            data: { role: 'PREMIUM' }
+          })
+        } else if (session.mode === 'payment') {
+          // Gestion achat unique
+          const { userId, itemId, type } = session.metadata || {}
+          
+          if (type === 'formation') {
+            // Pour une formation, rendre toutes ses vidéos accessibles
+            const formation = await prisma.formation.findUnique({
+              where: { id: itemId },
+              include: { videos: true }
+            })
 
-    case 'customer.subscription.deleted':
-      // Rétrograder l'utilisateur
-      await prisma.user.update({
-        where: { id: session.metadata?.userId },
-        data: { role: 'NORMAL' }
-      })
-      break
+            if (formation) {
+              await prisma.$transaction([
+                // Créer l'achat de la formation
+                prisma.purchase.create({
+                  data: {
+                    type,
+                    itemId,
+                    userId,
+                    price: formation.price || 0
+                  }
+                }),
+                // Créer les achats pour chaque vidéo de la formation
+                ...formation.videos.map(videoFormation => 
+                  prisma.purchase.create({
+                    data: {
+                      type: 'video',
+                      itemId: videoFormation.videoId,
+                      userId,
+                      price: 0 // Gratuit car inclus dans la formation
+                    }
+                  })
+                )
+              ])
+            }
+          } else {
+            // Pour article ou vidéo unique
+            await prisma.purchase.create({
+              data: {
+                type,
+                itemId,
+                userId,
+                price: session.amount_total ? session.amount_total / 100 : 0
+              }
+            })
+          }
+        }
+
+        console.log('Session complétée:', session)
+        console.log('Métadonnées:', session.metadata)
+        break
+
+      case 'customer.subscription.deleted':
+        const subscription = event.data.object as Stripe.Subscription
+        
+        // Retrouver l'utilisateur via la session de paiement
+        const checkoutSession = await stripe.checkout.sessions.retrieve(
+          subscription.metadata?.checkout_session_id as string
+        )
+        
+        // Rétrograder l'utilisateur en NORMAL
+        if (checkoutSession.metadata?.userId) {
+          await prisma.user.update({
+            where: { id: checkoutSession.metadata.userId },
+            data: { role: 'NORMAL' }
+          })
+        }
+        break
+    }
+
+    return NextResponse.json({ received: true })
+  } catch (error) {
+    console.error('Erreur traitement webhook:', error)
+    return NextResponse.json(
+      { error: 'Webhook handler failed' },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json({ received: true })
 } 

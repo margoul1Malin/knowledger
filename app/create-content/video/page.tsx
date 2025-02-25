@@ -8,6 +8,12 @@ import * as z from 'zod'
 import { useAuth } from '@/app/hooks/useAuth'
 import FileUpload from '@/app/components/ui/FileUpload'
 import { uploadFile } from '@/app/lib/upload'
+import dynamic from 'next/dynamic'
+
+const MDEditor = dynamic(
+  () => import('@uiw/react-md-editor').then((mod) => mod.default),
+  { ssr: false }
+)
 
 const videoSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
@@ -26,6 +32,7 @@ export default function CreateVideo() {
   const { user } = useAuth()
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [markdownDescription, setMarkdownDescription] = useState('')
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<VideoForm>({
     resolver: zodResolver(videoSchema)
@@ -64,10 +71,10 @@ export default function CreateVideo() {
 
   return (
     <div className="min-h-screen bg-background pt-24">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-3xl font-bold mb-8">Publier une vidéo</h1>
+      <div className="container mx-auto px-4 max-w-4xl">
+        <h1 className="text-3xl font-bold mb-8">Créer une vidéo</h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div>
             <label className="block text-sm font-medium mb-2">Titre</label>
             <input
@@ -81,11 +88,21 @@ export default function CreateVideo() {
 
           <div>
             <label className="block text-sm font-medium mb-2">Description</label>
-            <textarea
-              {...register("description")}
-              rows={5}
-              className="w-full p-2 rounded-lg border border-input bg-background"
-            />
+            <div data-color-mode="auto">
+              <MDEditor
+                value={markdownDescription}
+                onChange={(value) => {
+                  setMarkdownDescription(value || '')
+                  setValue('description', value || '', { 
+                    shouldValidate: true,
+                    shouldDirty: true
+                  })
+                }}
+                preview="live"
+                height={300}
+                className="w-full"
+              />
+            </div>
             {errors.description && (
               <p className="text-sm text-destructive mt-1">{errors.description.message}</p>
             )}

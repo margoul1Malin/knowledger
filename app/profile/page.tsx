@@ -12,6 +12,7 @@ import {
   SparklesIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline'
+import { useAuth } from '@/app/hooks/useAuth'
 
 type UserContent = {
   articles: any[]
@@ -21,18 +22,27 @@ type UserContent = {
 
 export default function ProfilePage() {
   const { data: session } = useSession()
+  const { user } = useAuth()
   const [userContent, setUserContent] = useState<UserContent>({
     articles: [],
     videos: [],
     formations: []
   })
   const [isLoading, setIsLoading] = useState(true)
+  const showPremiumBanner = user?.role === 'NORMAL'
+  const [purchases, setPurchases] = useState([])
 
   useEffect(() => {
     if (session?.user && ['ADMIN', 'FORMATOR'].includes(session.user.role)) {
       fetchUserContent()
     } else {
       setIsLoading(false)
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchPurchases()
     }
   }, [session])
 
@@ -46,6 +56,17 @@ export default function ProfilePage() {
       console.error('Erreur:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchPurchases = async () => {
+    try {
+      const res = await fetch(`/api/purchases/user/${session?.user.id}`)
+      if (!res.ok) throw new Error('Erreur lors de la récupération des achats')
+      const data = await res.json()
+      setPurchases(data)
+    } catch (error) {
+      console.error('Erreur:', error)
     }
   }
 
@@ -82,46 +103,24 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Section Abonnement pour les utilisateurs NORMAL */}
-          {session?.user?.role === 'NORMAL' && (
-            <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-2xl p-8 mb-8">
-              <div className="flex items-start gap-4">
-                <div className="bg-primary/10 p-3 rounded-full">
-                  <SparklesIcon className="h-6 w-6 text-primary" />
+          {showPremiumBanner && (
+            <div className="bg-card border border-border rounded-xl p-6 mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold mb-2">
+                    Passez à l'offre Premium
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Accédez à tout le contenu et profitez de fonctionnalités exclusives.
+                  </p>
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold mb-2">Passez à Premium</h2>
-                  <div className="space-y-4">
-                    <p className="text-muted-foreground">
-                      Profitez d'un accès illimité à tout notre contenu premium :
-                    </p>
-                    <ul className="space-y-2">
-                      {[
-                        'Accès à toutes les formations premium',
-                        'Téléchargement des vidéos',
-                        'Support prioritaire',
-                        'Pas de publicité',
-                        'Certificats de complétion'
-                      ].map((feature, index) => (
-                        <li key={index} className="flex items-center gap-2 text-sm">
-                          <CheckCircleIcon className="h-5 w-5 text-primary flex-shrink-0" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="flex items-center gap-4 pt-4">
-                      <Link
-                        href="/premium"
-                        className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-                      >
-                        Devenir Premium
-                      </Link>
-                      <span className="text-sm text-muted-foreground">
-                        À partir de 24.99€/mois
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <Link
+                  href="/premium"
+                  className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  <SparklesIcon className="h-5 w-5" />
+                  <span>Devenir Premium</span>
+                </Link>
               </div>
             </div>
           )}
@@ -237,6 +236,39 @@ export default function ProfilePage() {
                 ) : (
                   <p className="text-muted-foreground">Aucune formation créée</p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Section Achats */}
+          {purchases.length > 0 && (
+            <div className="bg-card border border-border rounded-2xl p-8 mb-8">
+              <h2 className="text-xl font-semibold mb-6">Mes achats</h2>
+              <div className="space-y-4">
+                {purchases.map((purchase) => (
+                  <Link
+                    key={purchase.id}
+                    href={`/${purchase.type}s/${purchase.item.slug}`}
+                    className="flex items-center justify-between p-4 bg-background rounded-lg hover:bg-secondary transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Image
+                        src={purchase.item.imageUrl || '/placeholder.png'}
+                        alt={purchase.item.title}
+                        width={60}
+                        height={60}
+                        className="rounded-lg"
+                      />
+                      <div>
+                        <h3 className="font-medium">{purchase.item.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Acheté le {new Date(purchase.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-primary font-semibold">{purchase.price}€</span>
+                  </Link>
+                ))}
               </div>
             </div>
           )}

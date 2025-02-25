@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { Session } from 'next-auth'
 import VideoPlayer from '@/app/components/VideoPlayer'
 import { LockClosedIcon } from '@heroicons/react/24/outline'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 
 type VideoFormationType = {
   id: string
@@ -44,7 +47,7 @@ export default function FormationContent({ formation, session }: Props) {
   const currentVideo = formation.videos[currentVideoIndex]?.video
 
   return (
-    <div className="min-h-screen bg-background pt-20">
+    <div className="min-h-screen bg-background pt-24">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Vidéo principale et informations */}
@@ -86,12 +89,22 @@ export default function FormationContent({ formation, session }: Props) {
                 )}
               </div>
 
-              <div className="prose dark:prose-invert max-w-none">
-                <h2 className="text-xl font-semibold mb-2">Description</h2>
-                <p>{formation.description}</p>
-                
-                <h2 className="text-xl font-semibold mt-8 mb-2">Contenu détaillé</h2>
-                <div className="whitespace-pre-wrap">{formation.content}</div>
+              <div className="prose prose-lg dark:prose-invert max-w-none mb-8">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                >
+                  {formation.description}
+                </ReactMarkdown>
+              </div>
+
+              <div className="prose prose-lg dark:prose-invert max-w-none">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                >
+                  {formation.content}
+                </ReactMarkdown>
               </div>
             </div>
           </div>

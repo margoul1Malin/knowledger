@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import FileUpload from '@/app/components/ui/FileUpload'
+import dynamic from 'next/dynamic'
 
 const formationSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
@@ -23,9 +24,16 @@ type Props = {
   isLoading: boolean
 }
 
+const MDEditor = dynamic(
+  () => import('@uiw/react-md-editor').then((mod) => mod.default),
+  { ssr: false }
+)
+
 export default function FormationBasicInfo({ onSubmit, isLoading }: Props) {
   const [categories, setCategories] = useState([])
   const [isPremium, setIsPremium] = useState(false)
+  const [markdownDescription, setMarkdownDescription] = useState('')
+  const [markdownContent, setMarkdownContent] = useState('')
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormationForm>({
     resolver: zodResolver(formationSchema),
@@ -56,12 +64,22 @@ export default function FormationBasicInfo({ onSubmit, isLoading }: Props) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Description</label>
-        <textarea
-          {...register("description")}
-          className="w-full p-2 rounded-lg border border-input bg-background"
-          rows={3}
-        />
+        <label className="block text-sm font-medium mb-2">Description courte</label>
+        <div data-color-mode="auto">
+          <MDEditor
+            value={markdownDescription}
+            onChange={(value) => {
+              setMarkdownDescription(value || '')
+              setValue('description', value || '', { 
+                shouldValidate: true,
+                shouldDirty: true
+              })
+            }}
+            preview="live"
+            height={200}
+            className="w-full"
+          />
+        </div>
         {errors.description && (
           <p className="text-sm text-destructive mt-1">{errors.description.message}</p>
         )}
@@ -69,11 +87,21 @@ export default function FormationBasicInfo({ onSubmit, isLoading }: Props) {
 
       <div>
         <label className="block text-sm font-medium mb-2">Contenu détaillé</label>
-        <textarea
-          {...register("content")}
-          className="w-full p-2 rounded-lg border border-input bg-background"
-          rows={5}
-        />
+        <div data-color-mode="auto">
+          <MDEditor
+            value={markdownContent}
+            onChange={(value) => {
+              setMarkdownContent(value || '')
+              setValue('content', value || '', { 
+                shouldValidate: true,
+                shouldDirty: true
+              })
+            }}
+            preview="live"
+            height={400}
+            className="w-full"
+          />
+        </div>
         {errors.content && (
           <p className="text-sm text-destructive mt-1">{errors.content.message}</p>
         )}

@@ -8,6 +8,13 @@ import * as z from 'zod'
 import { useAuth } from '@/app/hooks/useAuth'
 import FileUpload from '@/app/components/ui/FileUpload'
 import { uploadFile } from '@/app/lib/upload'
+import dynamic from 'next/dynamic'
+
+// Import dynamique de l'éditeur Markdown pour éviter les erreurs SSR
+const MDEditor = dynamic(
+  () => import('@uiw/react-md-editor').then((mod) => mod.default),
+  { ssr: false }
+)
 
 const articleSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
@@ -25,6 +32,7 @@ export default function CreateArticle() {
   const { user } = useAuth()
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [markdownContent, setMarkdownContent] = useState('')
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<ArticleForm>({
     resolver: zodResolver(articleSchema)
@@ -48,6 +56,7 @@ export default function CreateArticle() {
         },
         body: JSON.stringify({
           ...data,
+          content: markdownContent, // Utiliser le contenu Markdown
           authorId: user?.id,
         }),
       })
@@ -63,10 +72,10 @@ export default function CreateArticle() {
 
   return (
     <div className="min-h-screen bg-background pt-24">
-      <div className="container mx-auto px-4 max-w-2xl">
+      <div className="container mx-auto px-4 max-w-4xl">
         <h1 className="text-3xl font-bold mb-8">Créer un article</h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div>
             <label className="block text-sm font-medium mb-2">Titre</label>
             <input
@@ -80,11 +89,21 @@ export default function CreateArticle() {
 
           <div>
             <label className="block text-sm font-medium mb-2">Contenu</label>
-            <textarea
-              {...register("content")}
-              rows={10}
-              className="w-full p-2 rounded-lg border border-input bg-background"
-            />
+            <div data-color-mode="auto">
+              <MDEditor
+                value={markdownContent}
+                onChange={(value) => {
+                  setMarkdownContent(value || '')
+                  setValue('content', value || '', { 
+                    shouldValidate: true,
+                    shouldDirty: true
+                  })
+                }}
+                preview="live"
+                height={400}
+                className="w-full"
+              />
+            </div>
             {errors.content && (
               <p className="text-sm text-destructive mt-1">{errors.content.message}</p>
             )}

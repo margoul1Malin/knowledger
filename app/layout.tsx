@@ -1,6 +1,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import Navbar from './components/layout/Navbar'
+import Footer from './components/layout/Footer'
 import SessionProvider from './providers/SessionProvider'
 import { ThemeProvider } from './providers/ThemeProvider'
 
@@ -21,10 +22,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <SessionProvider>
-            <Navbar />
-            <main className="pt-16">
-              {children}
-            </main>
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-1 pt-16">
+                {children}
+              </main>
+              <Footer />
+            </div>
           </SessionProvider>
         </ThemeProvider>
       </body>

@@ -26,6 +26,7 @@ model User {
   articles    Article[]
   videos      Video[]
   formations  Formation[]
+  purchases   Purchase[]
 }
 
 model Category {
@@ -55,6 +56,7 @@ model Article {
   authorId    String   @db.ObjectId
   category    Category @relation(fields: [categoryId], references: [id])
   categoryId  String   @db.ObjectId
+  purchases   Purchase[]
 }
 
 model Video {
@@ -74,6 +76,7 @@ model Video {
   category    Category   @relation(fields: [categoryId], references: [id])
   categoryId  String     @db.ObjectId
   formations  VideoFormation[]
+  purchases   Purchase[]
 }
 
 model Formation {
@@ -92,6 +95,7 @@ model Formation {
   category    Category  @relation(fields: [categoryId], references: [id])
   categoryId  String    @db.ObjectId
   videos      VideoFormation[]
+  purchases   Purchase[]
 }
 
 model VideoFormation {
@@ -107,4 +111,20 @@ model VideoFormation {
 
   @@unique([formationId, videoId])
   @@unique([formationId, order])
+}
+
+model Purchase {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  type        String   // "article", "video", ou "formation"
+  itemId      String   @db.ObjectId
+  userId      String   @db.ObjectId
+  price       Float
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  article     Article? @relation(fields: [itemId], references: [id])
+  video       Video?   @relation(fields: [itemId], references: [id])
+  formation   Formation? @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, type, itemId])
 } 

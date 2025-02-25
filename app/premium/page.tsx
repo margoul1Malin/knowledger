@@ -18,6 +18,7 @@ export default function PremiumPage() {
   const { data: session } = useSession()
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('monthly')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const plans = {
     monthly: {
@@ -61,17 +62,29 @@ export default function PremiumPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceId: plans[selectedPlan].id,
-          userId: session?.user?.id
-        }),
+          plan: selectedPlan
+        })
       })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la création de la session')
+      }
 
       const { sessionId } = await response.json()
       const stripe = await stripePromise
-      await stripe?.redirectToCheckout({ sessionId })
+
+      if (!stripe) {
+        throw new Error('Stripe not initialized')
+      }
+
+      const { error } = await stripe.redirectToCheckout({ sessionId })
+      
+      if (error) {
+        throw error
+      }
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Une erreur est survenue')
+      setError('Une erreur est survenue')
     } finally {
       setIsLoading(false)
     }

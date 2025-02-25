@@ -40,6 +40,8 @@ const Navbar = () => {
     ...(isAdmin ? [{ name: 'Administration', href: '/admin', icon: Cog6ToothIcon }] : []),
   ]
 
+  const showPremiumLink = isAuthenticated && user?.role === 'NORMAL'
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 0)
@@ -114,7 +116,7 @@ const Navbar = () => {
               </AnimatePresence>
             </button>
 
-            {user?.role === 'NORMAL' && (
+            {showPremiumLink && (
               <Link
                 href="/premium"
                 className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
