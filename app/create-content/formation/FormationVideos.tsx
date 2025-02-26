@@ -42,7 +42,12 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
   }
 
   const handleRemoveVideo = (id: string) => {
-    setVideos(videos.filter(video => video.id !== id))
+    const newVideos = videos.filter(video => video.id !== id)
+    const reorderedVideos = newVideos.map((video, index) => ({
+      ...video,
+      order: index
+    }))
+    setVideos(reorderedVideos)
   }
 
   const onDragEnd = (result: DropResult) => {
@@ -68,25 +73,31 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
 
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/formations/${formationId}/videos`, {
+      const videosToSend = videos.map((video) => ({
+        videoUrl: video.videoUrl,
+        title: video.title,
+        description: video.description,
+        order: video.order
+      }))
+
+      const res = await fetch(`/api/admin/formations/${formationId}/videos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          videos: videos.map((video, index) => ({
-            ...video,
-            order: index
-          }))
+          videos: videosToSend
         }),
       })
 
-      if (!res.ok) throw new Error("Erreur lors de l'ajout des vidéos")
+      if (!res.ok) {
+        throw new Error("Erreur lors de l'ajout des vidéos")
+      }
 
       onComplete()
     } catch (error) {
-      console.error(error)
-      alert("Une erreur est survenue")
+      console.error('Erreur:', error)
+      alert(error instanceof Error ? error.message : "Une erreur est survenue")
     } finally {
       setIsLoading(false)
     }
@@ -113,10 +124,9 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
           />
           <FileUpload
             accept={{
-              'video/mp4': ['.mp4'],
-              'video/webm': ['.webm']
+              'video/*': ['.mp4', '.webm']
             }}
-            maxSize={100 * 1024 * 1024} // 100MB
+            maxSize={100 * 1024 * 1024}
             onUpload={async (file) => {
               try {
                 const formData = new FormData()
@@ -144,7 +154,8 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
           <button
             type="button"
             onClick={handleAddVideo}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+            disabled={!currentVideo.title || !currentVideo.videoUrl}
+            className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             <PlusIcon className="h-5 w-5" />
             Ajouter la vidéo
@@ -152,12 +163,15 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-4">
-        <h3 className="font-medium mb-4">Vidéos de la formation</h3>
-        <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <h3 className="font-medium mb-4">Vidéos de la formation (glisser-déposer pour réorganiser)</h3>
           <Droppable 
             droppableId="videos-list"
+            isCombineEnabled={false}
             isDropDisabled={false}
+            ignoreContainerClipping={false}
+            type="video"
           >
             {(provided) => (
               <div
@@ -170,19 +184,29 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
                     key={video.id}
                     draggableId={video.id}
                     index={index}
+                    isDragDisabled={false}
                   >
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        {...provided.dragHandleProps}
                         className={`flex items-center gap-2 p-2 bg-background rounded-lg border border-input
                           ${snapshot.isDragging ? 'opacity-50' : ''}`}
                       >
-                        <Bars3Icon className="h-5 w-5 text-muted-foreground cursor-move" />
+                        <div
+                          {...provided.dragHandleProps}
+                          className="cursor-move"
+                        >
+                          <Bars3Icon className="h-5 w-5 text-muted-foreground" />
+                        </div>
                         <div className="flex-1">
                           <p className="font-medium">{video.title}</p>
-                          <p className="text-sm text-muted-foreground">{video.description}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {video.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Ordre: {video.order + 1}
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -199,12 +223,12 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
               </div>
             )}
           </Droppable>
-        </DragDropContext>
-      </div>
+        </div>
+      </DragDropContext>
 
       <button
         onClick={handleSubmit}
-        disabled={isLoading}
+        disabled={isLoading || videos.length === 0}
         className="w-full py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
       >
         {isLoading ? "Création..." : "Terminer"}

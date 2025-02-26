@@ -30,15 +30,20 @@ export default function CategoriesPage() {
     resolver: zodResolver(categorySchema)
   })
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      if (!res.ok) throw new Error('Erreur lors du chargement des catégories')
+      const data = await res.json()
+      setCategories(data)
+    } catch (error) {
+      console.error('Erreur:', error)
+    }
+  }
+
   useEffect(() => {
     fetchCategories()
   }, [])
-
-  const fetchCategories = async () => {
-    const res = await fetch('/api/categories')
-    const data = await res.json()
-    setCategories(data)
-  }
 
   const generateSlug = (name: string) => {
     return name.toLowerCase()
@@ -53,7 +58,7 @@ export default function CategoriesPage() {
     setIsLoading(true)
     try {
       const url = editingId 
-        ? `/api/categories/${editingId}`
+        ? `/api/admin/categories/${editingId}`
         : '/api/categories'
       
       const method = editingId ? 'PUT' : 'POST'
@@ -88,21 +93,16 @@ export default function CategoriesPage() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) return
 
     try {
-      const res = await fetch(`/api/categories/${id}`, {
+      const res = await fetch(`/api/admin/categories/${id}`, {
         method: 'DELETE',
       })
 
       if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || 'Erreur lors de la suppression')
-      }
-
-      const data = await res.json()
-      if (data.success) {
-        await fetchCategories()
-      } else {
+        const data = await res.json()
         throw new Error(data.error || 'Erreur lors de la suppression')
       }
+
+      await fetchCategories()
     } catch (error) {
       console.error('Erreur:', error)
       alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')

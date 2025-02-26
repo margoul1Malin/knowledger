@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { Video } from '@prisma/client'
-import { XMarkIcon, PencilIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, PencilIcon, EyeIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import Image from 'next/image'
 
+type VideoWithFormations = Video & {
+  VideoFormation: {
+    formation: {
+      title: string;
+      slug: string;
+    }
+  }[]
+}
+
 export default function AdminVideosPage() {
-  const [videos, setVideos] = useState<Video[]>([])
+  const [videos, setVideos] = useState<VideoWithFormations[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -28,18 +37,23 @@ export default function AdminVideosPage() {
     }
   }
 
-  const handleDeleteVideo = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer cette vidéo ?')) return
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette vidéo ?')) return
 
     try {
-      const res = await fetch(`/api/videos/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/admin/videos/${id}`, {
+        method: 'DELETE',
       })
-      if (!res.ok) throw new Error('Erreur lors de la suppression')
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Erreur lors de la suppression')
+      }
+
       await fetchVideos()
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Une erreur est survenue lors de la suppression')
+      alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')
     }
   }
 
@@ -75,6 +89,12 @@ export default function AdminVideosPage() {
                 fill
                 className="object-cover"
               />
+              {video.VideoFormation && video.VideoFormation.length > 0 && (
+                <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <AcademicCapIcon className="h-4 w-4" />
+                  Formation
+                </div>
+              )}
             </div>
 
             {/* Informations de la vidéo */}
@@ -86,7 +106,8 @@ export default function AdminVideosPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-sm">
+              {/* Badges */}
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 {video.isPremium && (
                   <span className="px-2 py-1 bg-primary/10 text-primary rounded-full font-medium">
                     Premium
@@ -96,6 +117,19 @@ export default function AdminVideosPage() {
                   <span className="px-2 py-1 bg-muted rounded-full">
                     {video.price}€
                   </span>
+                )}
+                {video.VideoFormation && video.VideoFormation.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {video.VideoFormation.map((vf) => (
+                      <Link
+                        key={vf.formation.slug}
+                        href={`/formations/${vf.formation.slug}`}
+                        className="px-2 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs hover:bg-secondary/20 transition-colors"
+                      >
+                        {vf.formation.title}
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -116,7 +150,7 @@ export default function AdminVideosPage() {
                   <PencilIcon className="h-5 w-5" />
                 </Link>
                 <button
-                  onClick={() => handleDeleteVideo(video.id)}
+                  onClick={() => handleDelete(video.id)}
                   className="p-2 text-muted-foreground hover:text-destructive transition-colors"
                   title="Supprimer"
                 >

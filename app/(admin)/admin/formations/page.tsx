@@ -7,26 +7,38 @@ import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline'
 export default function AdminFormations() {
   const [formations, setFormations] = useState([])
 
+  const fetchFormations = async () => {
+    try {
+      const res = await fetch('/api/formations')
+      if (!res.ok) throw new Error('Erreur lors du chargement des formations')
+      const data = await res.json()
+      setFormations(data)
+    } catch (error) {
+      console.error('Erreur:', error)
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/formations')
-      .then(res => res.json())
-      .then(data => setFormations(data))
+    fetchFormations()
   }, [])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer cette formation ?')) return
-    
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette formation ?')) return
+
     try {
-      const res = await fetch(`/api/formations/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/admin/formations/${id}`, {
+        method: 'DELETE',
       })
 
-      if (!res.ok) throw new Error('Erreur lors de la suppression')
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Erreur lors de la suppression')
+      }
 
-      setFormations(formations.filter((f: any) => f.id !== id))
+      await fetchFormations()
     } catch (error) {
-      console.error(error)
-      alert('Erreur lors de la suppression')
+      console.error('Erreur:', error)
+      alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')
     }
   }
 

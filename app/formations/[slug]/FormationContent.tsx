@@ -9,6 +9,17 @@ import rehypeRaw from 'rehype-raw'
 import Image from 'next/image'
 import { LockClosedIcon } from '@heroicons/react/24/outline'
 
+interface VideoFormation {
+  order: number;
+  video: {
+    id: string;
+    title: string;
+    videoUrl: string;
+    coverImage: string;
+    duration?: number;
+  }
+}
+
 export default function FormationContent({ formation: initialFormation }: { formation: any }) {
   const { user } = useAuth()
   const [formation, setFormation] = useState(initialFormation)
@@ -123,7 +134,9 @@ export default function FormationContent({ formation: initialFormation }: { form
             <div className="bg-card rounded-lg border border-border p-4 sticky top-24">
               <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
               <div className="space-y-2">
-                {formation.videos.map((videoFormation: any, index: number) => (
+                {formation.videos
+                  .sort((a: VideoFormation, b: VideoFormation) => a.order - b.order)
+                  .map((videoFormation: VideoFormation, index: number) => (
                   <button
                     key={videoFormation.video.id}
                     onClick={() => setCurrentVideoIndex(index)}

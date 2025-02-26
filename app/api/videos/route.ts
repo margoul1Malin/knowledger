@@ -7,6 +7,11 @@ import slugify from '@/lib/slugify'
 export async function GET() {
   try {
     const videos = await prisma.video.findMany({
+      where: {
+        formations: {
+          none: {}
+        }
+      },
       include: {
         author: true,
         category: true

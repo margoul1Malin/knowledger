@@ -31,6 +31,11 @@ const menuItems = [
     icon: VideoCameraIcon,
   },
   {
+    name: 'Vidéos de Formation',
+    href: '/admin/videoformations',
+    icon: VideoCameraIcon,
+  },
+  {
     name: 'Formations',
     href: '/admin/formations',
     icon: AcademicCapIcon,

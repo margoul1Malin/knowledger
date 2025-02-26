@@ -31,7 +31,7 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params: paramsPromise }: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -45,8 +45,6 @@ export async function DELETE(
         }
       )
     }
-
-    const params = await paramsPromise
 
     // Vérifier si la catégorie existe
     const category = await prisma.category.findUnique({
@@ -63,17 +61,19 @@ export async function DELETE(
       )
     }
 
-    // Mettre à jour les relations une par une
+    // Mettre à null les références dans les articles
     await prisma.article.updateMany({
       where: { categoryId: params.id },
       data: { categoryId: null }
     })
 
+    // Mettre à null les références dans les vidéos
     await prisma.video.updateMany({
       where: { categoryId: params.id },
       data: { categoryId: null }
     })
 
+    // Mettre à null les références dans les formations
     await prisma.formation.updateMany({
       where: { categoryId: params.id },
       data: { categoryId: null }
@@ -85,16 +85,12 @@ export async function DELETE(
     })
 
     return new NextResponse(
-      JSON.stringify({
-        message: 'Catégorie supprimée avec succès',
-        success: true
-      }),
+      JSON.stringify({ success: true }),
       { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       }
     )
-
   } catch (error) {
     console.error('Erreur lors de la suppression:', error)
     return new NextResponse(

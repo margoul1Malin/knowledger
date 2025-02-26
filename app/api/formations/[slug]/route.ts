@@ -1,3 +1,42 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import prisma from '@/lib/prisma'
+
+export async function GET(
+  req: Request,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const formation = await prisma.formation.findUnique({
+      where: { slug: params.slug },
+      include: {
+        author: true,
+        videos: {
+          include: {
+            video: true
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        }
+      }
+    })
+
+    if (!formation) {
+      return NextResponse.json({ error: 'Formation non trouvée' }, { status: 404 })
+    }
+
+    return NextResponse.json(formation)
+  } catch (error) {
+    console.error('Erreur:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la récupération de la formation' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(
   req: Request,
   { params }: { params: { slug: string } }
@@ -16,7 +55,18 @@ export async function DELETE(
     }
 
     const formation = await prisma.formation.findUnique({
-      where: { slug: params.slug }
+      where: { slug: params.slug },
+      include: {
+        author: true,
+        videos: {
+          include: {
+            video: true
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        }
+      }
     })
 
     if (!formation) {

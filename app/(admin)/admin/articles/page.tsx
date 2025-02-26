@@ -7,26 +7,38 @@ import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 export default function AdminArticles() {
   const [articles, setArticles] = useState([])
 
+  const fetchArticles = async () => {
+    try {
+      const res = await fetch('/api/articles')
+      if (!res.ok) throw new Error('Erreur lors du chargement des articles')
+      const data = await res.json()
+      setArticles(data)
+    } catch (error) {
+      console.error('Erreur:', error)
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/articles')
-      .then(res => res.json())
-      .then(data => setArticles(data))
+    fetchArticles()
   }, [])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer cet article ?')) return
-    
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) return
+
     try {
-      const res = await fetch(`/api/articles/${id}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/admin/articles/${id}`, {
+        method: 'DELETE',
       })
 
-      if (!res.ok) throw new Error('Erreur lors de la suppression')
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Erreur lors de la suppression')
+      }
 
-      setArticles(articles.filter((a: any) => a.id !== id))
+      await fetchArticles()
     } catch (error) {
-      console.error(error)
-      alert('Erreur lors de la suppression')
+      console.error('Erreur:', error)
+      alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')
     }
   }
 
