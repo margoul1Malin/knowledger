@@ -8,6 +8,8 @@ import Image from 'next/image'
 import { Article, User } from '@prisma/client'
 import { useAuth } from '@/app/hooks/useAuth'
 import PurchaseModal from '@/app/components/PurchaseModal'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import Pagination from '@/app/components/ui/Pagination'
 
 type ArticleWithAuthor = Article & {
   author: User
@@ -28,30 +30,48 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
-export default function ArticlesList({ articles: initialArticles }: { articles: ArticleWithAuthor[] }) {
+export default function ArticlesList() {
   const { user } = useAuth()
-  const [articles, setArticles] = useState<(ArticleWithAuthor & { hasPurchased?: boolean })[]>(initialArticles)
+  const [articles, setArticles] = useState<(ArticleWithAuthor & { hasPurchased?: boolean })[]>([])
   const [selectedArticle, setSelectedArticle] = useState<ArticleWithAuthor | null>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [pagination, setPagination] = useState({
+    total: 0,
+    pages: 0,
+    page: 1,
+    limit: 15
+  })
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const currentPage = parseInt(searchParams.get('page') || '1')
 
   useEffect(() => {
-    const checkPurchases = async () => {
-      if (!user) return
-      
-      const updatedArticles = await Promise.all(
-        articles.map(async (article) => {
-          if (!article.isPremium) return article
+    fetchArticles(currentPage)
+  }, [currentPage])
 
-          const res = await fetch(`/api/articles/${article.slug}`)
-          const data = await res.json()
-          return { ...article, hasPurchased: data.hasPurchased }
-        })
-      )
-      setArticles(updatedArticles)
+  const fetchArticles = async (page: number) => {
+    try {
+      const res = await fetch(`/api/articles?page=${page}`)
+      if (!res.ok) throw new Error('Erreur lors de la récupération des articles')
+      const data = await res.json()
+      setArticles(data.items)
+      setPagination(data.pagination)
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    checkPurchases()
-  }, [user])
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', page.toString())
+    router.push(`${pathname}?${params.toString()}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleArticleClick = (article: ArticleWithAuthor) => {
     if (!article.isPremium || article.hasPurchased || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
@@ -62,6 +82,8 @@ export default function ArticlesList({ articles: initialArticles }: { articles: 
     setSelectedArticle(article)
     setShowPurchaseModal(true)
   }
+
+  if (isLoading) return <div>Chargement...</div>
 
   return (
     <>
@@ -122,6 +144,12 @@ export default function ArticlesList({ articles: initialArticles }: { articles: 
           type="article"
         />
       )}
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.pages}
+        onPageChange={handlePageChange}
+      />
     </>
   )
 } 

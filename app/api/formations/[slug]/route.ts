@@ -87,7 +87,7 @@ export async function DELETE(
     // Supprimer les achats liés
     await prisma.purchase.deleteMany({
       where: { 
-        contentId: formation.id,
+        itemId: formation.id,
         type: 'formation'
       }
     })

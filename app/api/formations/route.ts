@@ -51,28 +51,36 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = 15
+  const skip = (page - 1) * limit
+
   try {
-    const formations = await prisma.formation.findMany({
-      include: {
-        author: true,
-        category: true,
-        videos: {
-          include: {
-            video: true
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
+    const [formations, total] = await Promise.all([
+      prisma.formation.findMany({
+        include: {
+          author: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: skip
+      }),
+      prisma.formation.count()
+    ])
+
+    return NextResponse.json({
+      items: formations,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        page,
+        limit
       }
     })
-    return NextResponse.json(formations)
   } catch (error) {
-    console.error('Erreur récupération formations:', error)
+    console.error('Erreur:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des formations' },
       { status: 500 }

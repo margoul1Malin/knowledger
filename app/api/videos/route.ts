@@ -4,25 +4,44 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import prisma from '@/lib/prisma'
 import slugify from '@/lib/slugify'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = 15
+  const skip = (page - 1) * limit
+
   try {
-    const videos = await prisma.video.findMany({
-      where: {
-        formations: {
-          none: {}
+    const [videos, total] = await Promise.all([
+      prisma.video.findMany({
+        where: {
+          formations: { none: {} }
+        },
+        include: {
+          author: true,
+          category: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: skip
+      }),
+      prisma.video.count({
+        where: {
+          formations: { none: {} }
         }
-      },
-      include: {
-        author: true,
-        category: true
-      },
-      orderBy: {
-        createdAt: 'desc'
+      })
+    ])
+
+    return NextResponse.json({
+      items: videos,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        page,
+        limit
       }
     })
-    return NextResponse.json(videos)
   } catch (error) {
-    console.error('Erreur récupération vidéos:', error)
+    console.error('Erreur:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des vidéos' },
       { status: 500 }

@@ -37,20 +37,37 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = 15
+  const skip = (page - 1) * limit
+
   try {
-    const articles = await prisma.article.findMany({
-      include: {
-        author: true,
-        category: true
-      },
-      orderBy: {
-        createdAt: 'desc'
+    const [articles, total] = await Promise.all([
+      prisma.article.findMany({
+        include: {
+          author: true,
+          category: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: skip
+      }),
+      prisma.article.count()
+    ])
+
+    return NextResponse.json({
+      items: articles,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        page,
+        limit
       }
     })
-    return NextResponse.json(articles)
   } catch (error) {
-    console.error('Erreur récupération articles:', error)
+    console.error('Erreur:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des articles' },
       { status: 500 }

@@ -7,6 +7,8 @@ import Image from 'next/image'
 import { Video, User } from '@prisma/client'
 import { useAuth } from '@/app/hooks/useAuth'
 import PurchaseModal from '@/app/components/PurchaseModal'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import Pagination from '@/app/components/ui/Pagination'
 
 type VideoWithAuthor = Video & {
   author: User
@@ -27,46 +29,48 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
-export default function VideosList({ videos: initialVideos }: { videos: VideoWithAuthor[] }) {
+export default function VideosList() {
   const { user } = useAuth()
-  const [videos, setVideos] = useState<(VideoWithAuthor & { hasPurchased?: boolean })[]>(initialVideos)
+  const [videos, setVideos] = useState<(VideoWithAuthor & { hasPurchased?: boolean })[]>([])
   const [selectedVideo, setSelectedVideo] = useState<VideoWithAuthor | null>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [pagination, setPagination] = useState({
+    total: 0,
+    pages: 0,
+    page: 1,
+    limit: 15
+  })
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const currentPage = parseInt(searchParams.get('page') || '1')
 
   useEffect(() => {
-    const checkPurchases = async () => {
-      if (!user) {
-        setIsLoading(false)
-        return
-      }
-      
-      try {
-        const updatedVideos = await Promise.all(
-          initialVideos.map(async (video) => {
-            if (!video.isPremium) return video
+    fetchVideos(currentPage)
+  }, [currentPage])
 
-            try {
-              const res = await fetch(`/api/videos/${video.slug}/check-access`)
-              if (!res.ok) throw new Error('Erreur API')
-              const data = await res.json()
-              return { ...video, hasPurchased: data.hasPurchased }
-            } catch (error) {
-              console.error(`Erreur pour ${video.slug}:`, error)
-              return video
-            }
-          })
-        )
-        setVideos(updatedVideos)
-      } catch (error) {
-        console.error('Erreur générale:', error)
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchVideos = async (page: number) => {
+    try {
+      const res = await fetch(`/api/videos?page=${page}`)
+      if (!res.ok) throw new Error('Erreur lors de la récupération des vidéos')
+      const data = await res.json()
+      setVideos(data.items)
+      setPagination(data.pagination)
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    checkPurchases()
-  }, [user, initialVideos])
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', page.toString())
+    router.push(`${pathname}?${params.toString()}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleVideoClick = (video: VideoWithAuthor & { hasPurchased?: boolean }) => {
     if (!video.isPremium || video.hasPurchased || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
@@ -142,6 +146,12 @@ export default function VideosList({ videos: initialVideos }: { videos: VideoWit
           type="video"
         />
       )}
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.pages}
+        onPageChange={handlePageChange}
+      />
     </>
   )
 } 

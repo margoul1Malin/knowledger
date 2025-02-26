@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useTheme } from '@/app/providers/ThemeProvider'
@@ -17,9 +17,58 @@ import {
   MoonIcon,
   Cog6ToothIcon,
   PencilSquareIcon,
-  SparklesIcon
+  SparklesIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
+
+const SearchDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const [query, setQuery] = useState('')
+  const router = useRouter()
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query)}`)
+      onClose()
+      setQuery('')
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-2xl z-50 p-4"
+          >
+            <form onSubmit={handleSearch} className="relative">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher des articles, vidéos, formations..."
+                className="w-full px-4 py-3 pl-12 bg-card border border-border rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            </form>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -29,6 +78,7 @@ const Navbar = () => {
   const { theme, toggleTheme } = useTheme()
   const isAdmin = user?.role === 'ADMIN'
   const canCreateContent = user?.role === 'ADMIN' || user?.role === 'FORMATOR'
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   const navItems = [
     { name: 'Accueil', href: '/', icon: HomeIcon },
@@ -94,6 +144,14 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="p-2 rounded-full hover:bg-secondary"
+              aria-label="Search"
+            >
+              <MagnifyingGlassIcon className="h-5 w-5" />
+            </button>
+
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-secondary"
@@ -168,6 +226,7 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+      <SearchDialog isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </nav>
   )
 }

@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, VideoCameraIcon, AcademicCapIcon } from "@heroicons/react/24/outline";
+import CodeCard from '@/app/components/ui/CodeCard'
+
 
 export default function Home() {
   return (
@@ -36,15 +38,13 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <div className="flex-1 relative">
-              <div className="relative w-full aspect-square">
-                <Image
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop"
-                  alt="Illustration"
-                  fill
-                  className="object-cover rounded-2xl"
-                  priority
-                />
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+              <div className="flex-1 space-y-6">
+                {/* Votre contenu textuel existant */}
+              </div>
+              
+              <div className="flex-1">
+                <CodeCard />
               </div>
             </div>
           </div>

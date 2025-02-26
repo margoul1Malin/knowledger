@@ -7,6 +7,8 @@ import Image from 'next/image'
 import { Formation, User } from '@prisma/client'
 import { useAuth } from '@/app/hooks/useAuth'
 import PurchaseModal from '@/app/components/PurchaseModal'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import Pagination from '@/app/components/ui/Pagination'
 
 type FormationWithAuthor = Formation & {
   author: User
@@ -27,46 +29,48 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
-export default function FormationsList({ formations: initialFormations }: { formations: FormationWithAuthor[] }) {
+export default function FormationsList() {
   const { user } = useAuth()
-  const [formations, setFormations] = useState<(FormationWithAuthor & { hasPurchased?: boolean })[]>(initialFormations)
+  const [formations, setFormations] = useState<(FormationWithAuthor & { hasPurchased?: boolean })[]>([])
   const [selectedFormation, setSelectedFormation] = useState<FormationWithAuthor | null>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [pagination, setPagination] = useState({
+    total: 0,
+    pages: 0,
+    page: 1,
+    limit: 15
+  })
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const currentPage = parseInt(searchParams.get('page') || '1')
 
   useEffect(() => {
-    const checkPurchases = async () => {
-      if (!user) {
-        setIsLoading(false)
-        return
-      }
-      
-      try {
-        const updatedFormations = await Promise.all(
-          initialFormations.map(async (formation) => {
-            if (!formation.isPremium) return formation
+    fetchFormations(currentPage)
+  }, [currentPage])
 
-            try {
-              const res = await fetch(`/api/formations/${formation.slug}/check-access`)
-              if (!res.ok) throw new Error('Erreur API')
-              const data = await res.json()
-              return { ...formation, hasPurchased: data.hasPurchased }
-            } catch (error) {
-              console.error(`Erreur pour ${formation.slug}:`, error)
-              return formation
-            }
-          })
-        )
-        setFormations(updatedFormations)
-      } catch (error) {
-        console.error('Erreur générale:', error)
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchFormations = async (page: number) => {
+    try {
+      const res = await fetch(`/api/formations?page=${page}`)
+      if (!res.ok) throw new Error('Erreur lors de la récupération des formations')
+      const data = await res.json()
+      setFormations(data.items)
+      setPagination(data.pagination)
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    checkPurchases()
-  }, [user, initialFormations])
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', page.toString())
+    router.push(`${pathname}?${params.toString()}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleFormationClick = (formation: FormationWithAuthor & { hasPurchased?: boolean }) => {
     if (!formation.isPremium || formation.hasPurchased || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
@@ -142,6 +146,12 @@ export default function FormationsList({ formations: initialFormations }: { form
           type="formation"
         />
       )}
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.pages}
+        onPageChange={handlePageChange}
+      />
     </>
   )
 } 
