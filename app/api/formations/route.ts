@@ -61,7 +61,15 @@ export async function GET(request: Request) {
     const [formations, total] = await Promise.all([
       prisma.formation.findMany({
         include: {
-          author: true
+          author: true,
+          videos: {
+            include: {
+              video: true
+            },
+            orderBy: {
+              order: 'asc'
+            }
+          }
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
