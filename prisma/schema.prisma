@@ -19,6 +19,7 @@ model User {
   email     String   @unique
   name      String
   password  String
+  image     String?
   role      UserRole @default(NORMAL)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -27,6 +28,7 @@ model User {
   videos      Video[]
   formations  Formation[]
   purchases   Purchase[]
+  history     History[]
 }
 
 model Category {
@@ -68,6 +70,7 @@ model Video {
   slug        String   @unique
   isPremium   Boolean  @default(false)
   price       Float?
+  duration    Float?   // Durée en minutes
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -77,6 +80,7 @@ model Video {
   categoryId  String     @db.ObjectId
   formations  VideoFormation[]
   purchases   Purchase[]
+  history     History[]
 }
 
 model Formation {
@@ -88,6 +92,7 @@ model Formation {
   imageUrl    String
   isPremium   Boolean   @default(false)
   price       Float?
+  duration    Float?    // Durée totale en minutes
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   author      User      @relation(fields: [authorId], references: [id])
@@ -96,6 +101,7 @@ model Formation {
   categoryId  String    @db.ObjectId
   videos      VideoFormation[]
   purchases   Purchase[]
+  history     History[]
 }
 
 model VideoFormation {
@@ -137,4 +143,21 @@ model Todo {
   status      String   // 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model History {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  type        String   // "video" ou "formation"
+  itemId      String   @db.ObjectId
+  timestamp   Float    // Position en secondes
+  duration    Float?   // Durée en minutes
+  lastViewedAt DateTime
+
+  user        User     @relation(fields: [userId], references: [id])
+  video       Video?   @relation(fields: [itemId], references: [id])
+  formation   Formation? @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, type, itemId])
+  @@index([userId, lastViewedAt])
 } 

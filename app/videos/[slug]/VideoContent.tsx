@@ -6,6 +6,7 @@ import PurchaseModal from '@/app/components/PurchaseModal'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
+import VideoPlayer from '@/app/components/VideoPlayer'
 
 export default function VideoContent({ video: initialVideo }: { video: any }) {
   const { user } = useAuth()
@@ -62,16 +63,18 @@ export default function VideoContent({ video: initialVideo }: { video: any }) {
     <div className="min-h-screen bg-background pt-24">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="relative w-full rounded-2xl overflow-hidden mb-8" style={{ paddingTop: '56.25%' }}>
-          <video
-            src={video.videoUrl}
-            title={video.title}
-            controls
-            className="absolute inset-0 w-full h-full object-contain bg-black"
-            poster={video.coverImage}
-          >
-            <source src={video.videoUrl} type="video/mp4" />
-            Votre navigateur ne supporte pas la lecture de vidéos.
-          </video>
+          <div className="absolute inset-0">
+            <VideoPlayer
+              url={video.videoUrl}
+              videoId={video.id}
+              onDurationChange={(duration) => {
+                setVideo((prev: typeof initialVideo) => ({
+                  ...prev,
+                  duration
+                }))
+              }}
+            />
+          </div>
         </div>
 
         <div className="space-y-6">

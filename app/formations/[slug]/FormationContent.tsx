@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import Image from 'next/image'
 import { LockClosedIcon } from '@heroicons/react/24/outline'
+import VideoPlayer from '@/app/components/VideoPlayer'
 
 interface VideoFormation {
   order: number;
@@ -82,15 +83,24 @@ export default function FormationContent({ formation: initialFormation }: { form
           <div className="lg:col-span-2 space-y-8">
             {/* Lecteur vidéo */}
             <div className="aspect-video bg-card rounded-lg overflow-hidden">
-              <video
-                src={currentVideo?.videoUrl}
-                controls
-                poster={currentVideo?.coverImage}
-                className="w-full h-full object-contain bg-black"
-              >
-                <source src={currentVideo?.videoUrl} type="video/mp4" />
-                Votre navigateur ne supporte pas la lecture de vidéos.
-              </video>
+              {currentVideo && (
+                <VideoPlayer
+                  url={currentVideo.videoUrl}
+                  videoId={currentVideo.id}
+                  onDurationChange={(duration) => {
+                    const updatedVideos = formation.videos.map((vf: VideoFormation) => {
+                      if (vf.video.id === currentVideo.id) {
+                        return {
+                          ...vf,
+                          video: { ...vf.video, duration }
+                        }
+                      }
+                      return vf
+                    })
+                    setFormation((prev: typeof initialFormation) => ({ ...prev, videos: updatedVideos }))
+                  }}
+                />
+              )}
             </div>
 
             {/* Informations de la formation */}
@@ -157,7 +167,7 @@ export default function FormationContent({ formation: initialFormation }: { form
                         {videoFormation.video.title}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {videoFormation.video.duration} min
+                        {videoFormation.video.duration ? `${videoFormation.video.duration} min` : 'Durée non disponible'}
                       </p>
                     </div>
                   </button>
