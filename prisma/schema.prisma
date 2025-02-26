@@ -127,4 +127,14 @@ model Purchase {
   formation   Formation? @relation(fields: [itemId], references: [id])
 
   @@unique([userId, type, itemId])
+}
+
+model Todo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  priority    String   // 'HIGH' | 'MEDIUM' | 'LOW'
+  status      String   // 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 } 

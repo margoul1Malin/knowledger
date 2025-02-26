@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UsersIcon, NewspaperIcon, VideoCameraIcon, AcademicCapIcon, HomeIcon, TagIcon } from '@heroicons/react/24/outline'
+import { UsersIcon, NewspaperIcon, VideoCameraIcon, AcademicCapIcon, HomeIcon, TagIcon, LightBulbIcon } from '@heroicons/react/24/outline'
 
 const menuItems = [
   {
@@ -40,6 +40,12 @@ const menuItems = [
     href: '/admin/formations',
     icon: AcademicCapIcon,
   },
+  {
+    name: 'Pense-Bête',
+    href: '/admin/todo',
+    icon: LightBulbIcon,
+    description: 'Fonctionnalités futures à implémenter'
+  }
 ]
 
 export default function AdminSidebar() {
