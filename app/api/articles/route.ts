@@ -7,23 +7,40 @@ import slugify from '@/lib/slugify'
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+    
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { title, content, imageUrl, categoryId, isPremium, price, authorId } = body
+    if (!['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
 
+    const data = await req.json()
+
+    // Créer l'article
     const article = await prisma.article.create({
       data: {
-        title,
-        content,
-        imageUrl,
-        slug: slugify(title),
-        categoryId,
-        isPremium,
-        price: isPremium ? price : null,
-        authorId
+        title: data.title,
+        content: data.content,
+        imageUrl: data.imageUrl,
+        isPremium: data.isPremium,
+        price: data.price,
+        slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        authorId: session.user.id,
+        categoryId: data.categoryId
+      }
+    })
+
+    // Créer une notification pour l'auteur
+    await prisma.notification.create({
+      data: {
+        userId: session.user.id,
+        type: 'NEW_ARTICLE',
+        title: 'Nouvel article créé',
+        message: `Votre article "${data.title}" a été publié avec succès.`,
+        contentId: article.id,
+        contentType: 'article'
       }
     })
 
@@ -31,34 +48,56 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Erreur création article:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la création de l\'article' },
+      { error: 'Erreur serveur' },
       { status: 500 }
     )
   }
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = 15
-  const skip = (page - 1) * limit
-
   try {
-    const [articles, total] = await Promise.all([
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '15')
+    const skip = (page - 1) * limit
+
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id
+
+    const [total, items] = await Promise.all([
+      prisma.article.count(),
       prisma.article.findMany({
-        include: {
-          author: true,
-          category: true
-        },
-        orderBy: { createdAt: 'desc' },
+        skip,
         take: limit,
-        skip: skip
-      }),
-      prisma.article.count()
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true
+            }
+          },
+          purchases: userId ? {
+            where: {
+              userId: userId
+            }
+          } : false
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
     ])
 
+    // Ajouter hasPurchased à chaque article
+    const articlesWithPurchaseInfo = items.map(article => ({
+      ...article,
+      hasPurchased: article.purchases && article.purchases.length > 0,
+      purchases: undefined // Supprimer les données de purchase pour alléger la réponse
+    }))
+
     return NextResponse.json({
-      items: articles,
+      items: articlesWithPurchaseInfo,
       pagination: {
         total,
         pages: Math.ceil(total / limit),
@@ -69,7 +108,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Erreur:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des articles' },
+      { error: 'Erreur serveur' },
       { status: 500 }
     )
   }

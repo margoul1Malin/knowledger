@@ -18,7 +18,8 @@ import {
   Cog6ToothIcon,
   PencilSquareIcon,
   SparklesIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -85,6 +86,7 @@ const Navbar = () => {
     { name: 'Articles', href: '/articles', icon: NewspaperIcon },
     { name: 'Vidéos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Formations', href: '/formations', icon: AcademicCapIcon },
+    { name: 'Formateurs', href: '/publicprofiles', icon: UserGroupIcon },
     ...(user?.role === 'NORMAL' ? [{ name: 'Premium', href: '/premium', icon: SparklesIcon }] : []),
     ...(canCreateContent ? [{ name: 'Mon Contenu', href: '/create-content', icon: PencilSquareIcon }] : []),
     ...(isAdmin ? [{ name: 'Administration', href: '/admin', icon: Cog6ToothIcon }] : []),
@@ -108,8 +110,8 @@ const Navbar = () => {
           : 'bg-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
           <Link 
             href="/" 
             className="flex items-center space-x-2 font-bold text-2xl text-primary"
@@ -118,7 +120,7 @@ const Navbar = () => {
             <span>KnowLedger</span>
           </Link>
           
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-10">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -127,7 +129,7 @@ const Navbar = () => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center space-x-1 relative group py-2 ${
+                  className={`flex items-center space-x-2 relative group py-3 px-3 rounded-lg hover:bg-secondary/50 ${
                     isActive 
                       ? 'text-primary' 
                       : 'text-muted-foreground hover:text-primary'
@@ -143,7 +145,7 @@ const Navbar = () => {
             })}
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             <button
               onClick={() => setIsSearchOpen(true)}
               className="p-2 rounded-full hover:bg-secondary"

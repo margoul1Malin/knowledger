@@ -12,7 +12,7 @@ if (!process.env.STRIPE_WEBHOOK_SECRET) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16'
+  apiVersion: '2025-01-27.acacia'
 })
 
 export async function POST(req: Request) {
@@ -48,10 +48,20 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session
 
         if (session.mode === 'subscription') {
-          // Gestion abonnement Premium existante
+          // Gestion abonnement Premium
           await prisma.user.update({
             where: { id: session.metadata?.userId },
             data: { role: 'PREMIUM' }
+          })
+
+          // Notification pour l'upgrade premium
+          await prisma.notification.create({
+            data: {
+              userId: session.metadata?.userId!,
+              type: 'PREMIUM_UPGRADE',
+              title: 'Bienvenue dans Premium !',
+              message: 'Vous avez maintenant accès à tout le contenu premium. Profitez-en !',
+            }
           })
         } else if (session.mode === 'payment') {
           // Gestion achat unique
@@ -85,19 +95,44 @@ export async function POST(req: Request) {
                       price: 0 // Gratuit car inclus dans la formation
                     }
                   })
-                )
+                ),
+                // Créer une notification pour l'achat
+                prisma.notification.create({
+                  data: {
+                    userId,
+                    type: 'PURCHASE',
+                    title: 'Formation achetée',
+                    message: `Vous avez acheté la formation "${formation.title}". Bonne formation !`,
+                    contentId: itemId,
+                    contentType: 'formation'
+                  }
+                })
               ])
             }
           } else {
             // Pour article ou vidéo unique
-            await prisma.purchase.create({
-              data: {
-                type,
-                itemId,
-                userId,
-                price: session.amount_total ? session.amount_total / 100 : 0
-              }
-            })
+            const [content, notification] = await prisma.$transaction([
+              // Créer l'achat
+              prisma.purchase.create({
+                data: {
+                  type,
+                  itemId,
+                  userId,
+                  price: session.amount_total ? session.amount_total / 100 : 0
+                }
+              }),
+              // Créer une notification
+              prisma.notification.create({
+                data: {
+                  userId,
+                  type: 'PURCHASE',
+                  title: type === 'article' ? 'Article acheté' : 'Vidéo achetée',
+                  message: `Vous avez acheté ${type === 'article' ? 'l\'article' : 'la vidéo'}. Bon visionnage !`,
+                  contentId: itemId,
+                  contentType: type
+                }
+              })
+            ])
           }
         }
 
@@ -113,11 +148,21 @@ export async function POST(req: Request) {
           subscription.metadata?.checkout_session_id as string
         )
         
-        // Rétrograder l'utilisateur en NORMAL
         if (checkoutSession.metadata?.userId) {
+          // Rétrograder l'utilisateur en NORMAL
           await prisma.user.update({
             where: { id: checkoutSession.metadata.userId },
             data: { role: 'NORMAL' }
+          })
+
+          // Notification pour l'annulation de l'abonnement
+          await prisma.notification.create({
+            data: {
+              userId: checkoutSession.metadata.userId,
+              type: 'PREMIUM_UPGRADE',
+              title: 'Abonnement Premium terminé',
+              message: 'Votre abonnement Premium est arrivé à son terme. Vous pouvez le renouveler à tout moment.',
+            }
           })
         }
         break

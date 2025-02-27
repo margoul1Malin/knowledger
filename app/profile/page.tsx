@@ -1,25 +1,128 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { UserCircleIcon } from '@heroicons/react/24/outline'
-import { getServerSession } from 'next-auth'
-import { redirect } from 'next/navigation'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import UserInfo from '@/components/profile/UserInfo'
-import PurchaseHistory from '@/components/profile/PurchaseHistory'
-import HistorySection from '@/components/profile/HistorySection'
-import CreatorContent from '@/components/profile/CreatorContent'
+import { UserCircleIcon, CameraIcon } from '@heroicons/react/24/outline'
 import { UserRole } from '@prisma/client'
+import { toast } from 'sonner'
 
 export default function ProfilePage() {
-  const { data: session } = useSession()
+  const { data: session, update: updateSession } = useSession()
   const [isLoading, setIsLoading] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [imageError, setImageError] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  
+  // Log la session au chargement
+  useEffect(() => {
+    if (session?.user) {
+      console.log('Session actuelle:', {
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image
+      })
+    }
+  }, [session])
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Prévisualisation de l'image
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // TODO: Implémenter la mise à jour du profil
+    setIsLoading(true)
+
+    try {
+      const formData = new FormData(e.currentTarget)
+      
+      // Ne pas envoyer les champs de mot de passe si vides
+      const currentPassword = formData.get('currentPassword')
+      const newPassword = formData.get('newPassword')
+      const confirmPassword = formData.get('confirmPassword')
+
+      // Validation du mot de passe
+      if (newPassword || currentPassword || confirmPassword) {
+        if (!currentPassword) {
+          toast.error('Veuillez entrer votre mot de passe actuel')
+          return
+        }
+        if (!newPassword) {
+          toast.error('Veuillez entrer un nouveau mot de passe')
+          return
+        }
+        if (newPassword !== confirmPassword) {
+          toast.error('Les mots de passe ne correspondent pas')
+          return
+        }
+        if (typeof newPassword === 'string' && newPassword.length < 6) {
+          toast.error('Le mot de passe doit contenir au moins 6 caractères')
+          return
+        }
+      } else {
+        // Si aucun champ de mot de passe n'est rempli, les retirer du FormData
+        formData.delete('currentPassword')
+        formData.delete('newPassword')
+        formData.delete('confirmPassword')
+      }
+
+      // Ajout de l'image si elle a été modifiée
+      const fileInput = fileInputRef.current
+      if (fileInput?.files?.[0]) {
+        formData.append('image', fileInput.files[0])
+      }
+
+      const response = await fetch('/api/users/profile', {
+        method: 'PATCH',
+        body: formData
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Une erreur est survenue')
+      }
+
+      // Mise à jour de la session avec les nouvelles données
+      await updateSession()
+      
+      // Réinitialisation des champs de mot de passe
+      if (formRef.current) {
+        const passwordInputs = formRef.current.querySelectorAll<HTMLInputElement>('input[type="password"]')
+        passwordInputs.forEach(input => {
+          input.value = ''
+        })
+      }
+      
+      // Réinitialisation de l'aperçu de l'image seulement si pas de nouvelle image
+      if (!data.user.image) {
+        setPreviewImage(null)
+      } else {
+        // Force le rafraîchissement de l'image en ajoutant un timestamp
+        const timestamp = new Date().getTime()
+        setPreviewImage(`${data.user.image}?t=${timestamp}`)
+      }
+      
+      toast.success('Profil mis à jour avec succès')
+    } catch (error) {
+      console.error('Erreur:', error)
+      toast.error(error instanceof Error ? error.message : 'Une erreur est survenue')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const isCreator = session?.user?.role === UserRole.FORMATOR || session?.user?.role === UserRole.ADMIN
@@ -32,26 +135,37 @@ export default function ProfilePage() {
           
           <div className="flex items-center gap-6 mb-8">
             <div className="relative">
-              {session?.user?.image ? (
-                <Image
-                  src={session.user.image}
-                  alt={session.user.name || ''}
-                  width={100}
-                  height={100}
-                  className="rounded-full"
-                />
-              ) : (
-                <UserCircleIcon className="h-24 w-24 text-muted-foreground" />
-              )}
-              <button
-                className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2 rounded-full hover:bg-primary/90 transition-colors"
-                title="Changer la photo"
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                accept="image/*"
+                className="hidden"
+              />
+              <div 
+                onClick={handleImageClick}
+                className="relative w-24 h-24 rounded-full overflow-hidden cursor-pointer group"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
-                  <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
-                </svg>
-              </button>
+                {(!imageError && (previewImage || session?.user?.image)) ? (
+                  <Image
+                    src={previewImage || session?.user?.image || ''}
+                    alt={session?.user?.name || ''}
+                    width={96}
+                    height={96}
+                    className="object-cover w-full h-full"
+                    unoptimized
+                    onError={() => {
+                      console.error('Erreur de chargement de l\'image:', session?.user?.image)
+                      setImageError(true)
+                    }}
+                  />
+                ) : (
+                  <UserCircleIcon className="h-24 w-24 text-muted-foreground" />
+                )}
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <CameraIcon className="h-8 w-8 text-white" />
+                </div>
+              </div>
             </div>
             <div>
               <h2 className="text-xl font-semibold">{session?.user?.name}</h2>
@@ -59,7 +173,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-2">
                 Nom d'utilisateur

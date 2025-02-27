@@ -4,9 +4,8 @@ import prisma from '@/lib/prisma'
 export default async function VideosPage() {
   const videos = await prisma.video.findMany({
     where: {
-      // Ne récupérer que les vidéos qui ne sont pas dans des formations
       formations: {
-        none: {}
+        none: {} // Sélectionner uniquement les vidéos qui ne sont pas dans des formations
       }
     },
     include: {

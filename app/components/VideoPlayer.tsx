@@ -24,9 +24,9 @@ export default function VideoPlayer({ url, videoId, onDurationChange }: Props) {
   }
 
   const handleTimeUpdate = async (event: React.SyntheticEvent<HTMLVideoElement>) => {
-    if (!session?.user) {
-      console.log('Pas de session utilisateur')
-      return
+    // Vérifier si l'utilisateur est connecté et a un rôle autorisé
+    if (!session?.user || session.user.role === 'NORMAL') {
+      return // Sortir silencieusement si l'utilisateur est NORMAL
     }
     
     const now = Date.now()

@@ -14,6 +14,14 @@ enum UserRole {
   NORMAL
 }
 
+enum NotificationType {
+  NEW_ARTICLE
+  NEW_VIDEO
+  NEW_FORMATION
+  PURCHASE
+  PREMIUM_UPGRADE
+}
+
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   email     String   @unique
@@ -29,6 +37,8 @@ model User {
   formations  Formation[]
   purchases   Purchase[]
   history     History[]
+  notifications Notification[]
+  publicProfile PublicProfileAddons?
 }
 
 model Category {
@@ -160,4 +170,38 @@ model History {
 
   @@unique([userId, type, itemId])
   @@index([userId, lastViewedAt])
+}
+
+model Notification {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String          @db.ObjectId
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  
+  // Relations
+  user        User            @relation(fields: [userId], references: [id])
+  
+  // Champs optionnels pour les références
+  contentId   String?         @db.ObjectId  // ID de l'article/vidéo/formation
+  contentType String?         // "article", "video", "formation"
+  
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+}
+
+model PublicProfileAddons {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @unique @db.ObjectId
+  bio         String?   // Supprimer @db.Text car non supporté par MongoDB
+  expertise   String[]
+  location    String?
+  website     String?
+  github      String?
+  socialLinks Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 } 

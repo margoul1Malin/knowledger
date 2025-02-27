@@ -5,34 +5,60 @@ import prisma from '@/lib/prisma'
 import slugify from '@/lib/slugify'
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = 15
-  const skip = (page - 1) * limit
-
   try {
-    const [videos, total] = await Promise.all([
-      prisma.video.findMany({
-        where: {
-          formations: { none: {} }
-        },
-        include: {
-          author: true,
-          category: true
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: skip
-      }),
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '15')
+    const skip = (page - 1) * limit
+
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id
+
+    const [total, items] = await Promise.all([
       prisma.video.count({
         where: {
-          formations: { none: {} }
+          formations: {
+            none: {}
+          }
+        }
+      }),
+      prisma.video.findMany({
+        where: {
+          formations: {
+            none: {}
+          }
+        },
+        skip,
+        take: limit,
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true
+            }
+          },
+          purchases: userId ? {
+            where: {
+              userId: userId
+            }
+          } : false
+        },
+        orderBy: {
+          createdAt: 'desc'
         }
       })
     ])
 
+    // Ajouter hasPurchased à chaque vidéo
+    const videosWithPurchaseInfo = items.map(video => ({
+      ...video,
+      hasPurchased: video.purchases && video.purchases.length > 0,
+      purchases: undefined // Supprimer les données de purchase pour alléger la réponse
+    }))
+
     return NextResponse.json({
-      items: videos,
+      items: videosWithPurchaseInfo,
       pagination: {
         total,
         pages: Math.ceil(total / limit),
@@ -43,7 +69,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Erreur:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des vidéos' },
+      { error: 'Erreur serveur' },
       { status: 500 }
     )
   }
@@ -52,24 +78,41 @@ export async function GET(request: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+    
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { title, description, videoUrl, coverImage, categoryId, isPremium, price, authorId } = body
+    if (!['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
 
+    const data = await req.json()
+
+    // Créer la vidéo
     const video = await prisma.video.create({
       data: {
-        title,
-        description,
-        videoUrl,
-        coverImage,
-        slug: slugify(title),
-        categoryId,
-        isPremium,
-        price: isPremium ? price : null,
-        authorId
+        title: data.title,
+        description: data.description,
+        videoUrl: data.videoUrl,
+        coverImage: data.coverImage,
+        isPremium: data.isPremium,
+        price: data.price,
+        slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        authorId: session.user.id,
+        categoryId: data.categoryId
+      }
+    })
+
+    // Créer une notification pour l'auteur
+    await prisma.notification.create({
+      data: {
+        userId: session.user.id,
+        type: 'NEW_VIDEO',
+        title: 'Nouvelle vidéo créée',
+        message: `Votre vidéo "${data.title}" a été publiée avec succès.`,
+        contentId: video.id,
+        contentType: 'video'
       }
     })
 
@@ -77,7 +120,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Erreur création vidéo:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la création de la vidéo' },
+      { error: 'Erreur serveur' },
       { status: 500 }
     )
   }

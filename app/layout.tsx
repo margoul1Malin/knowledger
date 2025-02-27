@@ -4,6 +4,8 @@ import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import SessionProvider from './providers/SessionProvider'
 import { ThemeProvider } from './providers/ThemeProvider'
+import { Toaster } from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,8 +21,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider>
+      <body className={cn('min-h-screen bg-background font-sans antialiased', inter.className)}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <SessionProvider>
             <div className="flex flex-col min-h-screen">
               <Navbar />
@@ -29,6 +31,7 @@ export default function RootLayout({
               </main>
               <Footer />
             </div>
+            <Toaster position="bottom-right" />
           </SessionProvider>
         </ThemeProvider>
       </body>

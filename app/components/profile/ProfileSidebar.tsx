@@ -9,7 +9,9 @@ import {
   ClockIcon,
   DocumentTextIcon,
   SparklesIcon,
-  BellIcon
+  BellIcon,
+  ShoppingBagIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline'
 
 const links = [
@@ -22,7 +24,14 @@ const links = [
   {
     href: '/profile/historique',
     label: 'Historique',
-    icon: ClockIcon
+    icon: ClockIcon,
+    roles: [UserRole.ADMIN, UserRole.FORMATOR, UserRole.PREMIUM]
+  },
+  {
+    href: '/profile/achats',
+    label: 'Mes Achats',
+    icon: ShoppingBagIcon,
+    roles: [UserRole.NORMAL]
   },
   {
     href: '/profile/contenu',
@@ -39,6 +48,12 @@ const links = [
     href: '/profile/notifications',
     label: 'Notifications',
     icon: BellIcon
+  },
+  {
+    href: '/profile/edit',
+    label: 'Public Profile',
+    icon: PencilSquareIcon,
+    roles: [UserRole.ADMIN, UserRole.FORMATOR]
   }
 ]
 
