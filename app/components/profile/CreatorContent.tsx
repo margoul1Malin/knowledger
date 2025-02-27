@@ -42,6 +42,7 @@ export default function CreatorContent() {
     totalStudents: 0
   })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchContent()
@@ -49,9 +50,18 @@ export default function CreatorContent() {
 
   const fetchContent = async () => {
     try {
+      setError(null)
       const res = await fetch('/api/users/content')
-      if (!res.ok) throw new Error('Erreur lors de la récupération du contenu')
+      console.log('Réponse status:', res.status)
+      
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Erreur lors de la récupération du contenu')
+      }
+      
       const data = await res.json()
+      console.log('Données reçues:', data)
+      
       setContent(data)
       
       // Calculer les statistiques
@@ -63,7 +73,8 @@ export default function CreatorContent() {
         totalStudents: calculateTotalStudents(data)
       })
     } catch (error) {
-      console.error('Erreur:', error)
+      console.error('Erreur complète:', error)
+      setError(error instanceof Error ? error.message : 'Erreur lors de la récupération du contenu')
     } finally {
       setLoading(false)
     }
@@ -84,11 +95,33 @@ export default function CreatorContent() {
   if (loading) {
     return (
       <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-card rounded-lg p-6 animate-pulse">
+              <div className="h-8 bg-muted rounded w-24 mb-4"></div>
+              <div className="h-6 bg-muted rounded w-16"></div>
+            </div>
+          ))}
+        </div>
         <div className="animate-pulse space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-24 bg-card rounded-lg" />
           ))}
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
+        <p>{error}</p>
+        <button
+          onClick={fetchContent}
+          className="mt-2 text-sm underline hover:no-underline"
+        >
+          Réessayer
+        </button>
       </div>
     )
   }
