@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UsersIcon, NewspaperIcon, VideoCameraIcon, AcademicCapIcon, HomeIcon, TagIcon, LightBulbIcon } from '@heroicons/react/24/outline'
+import { 
+  UsersIcon, 
+  NewspaperIcon, 
+  VideoCameraIcon, 
+  AcademicCapIcon, 
+  HomeIcon, 
+  TagIcon, 
+  LightBulbIcon,
+  InboxIcon 
+} from '@heroicons/react/24/outline'
 
 const menuItems = [
   {
@@ -14,6 +23,11 @@ const menuItems = [
     name: 'Utilisateurs',
     href: '/admin/users',
     icon: UsersIcon,
+  },
+  {
+    name: 'Messages',
+    href: '/admin/messages',
+    icon: InboxIcon,
   },
   {
     name: 'Catégories',

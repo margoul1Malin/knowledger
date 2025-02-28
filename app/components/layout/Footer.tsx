@@ -7,7 +7,8 @@ import {
   NewspaperIcon, 
   VideoCameraIcon, 
   AcademicCapIcon,
-  SparklesIcon 
+  SparklesIcon,
+  BookOpenIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/app/hooks/useAuth'
 
@@ -17,6 +18,11 @@ const navigation = [
   { name: 'Vidéos', href: '/videos', icon: VideoCameraIcon },
   { name: 'Formations', href: '/formations', icon: AcademicCapIcon },
   { name: 'Premium', href: '/premium', icon: SparklesIcon },
+  { name: 'Contact', href: '/contact', icon: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+    </svg>
+  ) },
 ]
 
 const socialLinks = [
@@ -59,6 +65,7 @@ export default function Footer() {
     { name: 'Articles', href: '/articles', icon: NewspaperIcon },
     { name: 'Vidéos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Formations', href: '/formations', icon: AcademicCapIcon },
+    { name: 'Contact', href: '/contact', icon: BookOpenIcon },
   ]
 
   // Ajouter le lien Premium seulement pour les utilisateurs NORMAL

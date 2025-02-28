@@ -39,6 +39,7 @@ model User {
   history     History[]
   notifications Notification[]
   publicProfile PublicProfileAddons?
+  messages    Message[]
 }
 
 model Category {
@@ -204,4 +205,20 @@ model PublicProfileAddons {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  subject     String
+  content     String
+  status      String   @default("UNREAD")  // UNREAD, READ, ARCHIVED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String   @db.ObjectId
+
+  @@index([userId])
+  @@index([status])
 } 
