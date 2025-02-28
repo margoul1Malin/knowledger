@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import VideoPlayer from '@/app/components/VideoPlayer'
+import AuthorCard from '@/app/components/ui/AuthorCard'
 
 export default function VideoContent({ video: initialVideo }: { video: any }) {
   const { user } = useAuth()
@@ -61,40 +62,58 @@ export default function VideoContent({ video: initialVideo }: { video: any }) {
 
   return (
     <div className="min-h-screen bg-background pt-24">
-      <div className="container mx-auto px-4 max-w-4xl">
-        <div className="relative w-full rounded-2xl overflow-hidden mb-8" style={{ paddingTop: '56.25%' }}>
-          <div className="absolute inset-0">
-            <VideoPlayer
-              url={video.videoUrl}
-              videoId={video.id}
-              onDurationChange={(duration) => {
-                setVideo((prev: typeof initialVideo) => ({
-                  ...prev,
-                  duration
-                }))
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <h1 className="text-3xl font-bold text-foreground">
-            {video.title}
-          </h1>
-          
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span>Par {video.author.name}</span>
-            <span>•</span>
-            <time>{new Date(video.createdAt).toLocaleDateString()}</time>
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar avec AuthorCard */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <AuthorCard author={video.author} />
+            </div>
           </div>
 
-          <div className="prose prose-lg dark:prose-invert max-w-none mt-8">
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw]}
-            >
-              {video.description}
-            </ReactMarkdown>
+          {/* Contenu principal */}
+          <div className="lg:col-span-3">
+            <div className="max-w-4xl">
+              <div className="relative w-full rounded-2xl overflow-hidden mb-8" style={{ paddingTop: '56.25%' }}>
+                <div className="absolute inset-0">
+                  <VideoPlayer
+                    url={video.videoUrl}
+                    videoId={video.id}
+                    onDurationChange={(duration) => {
+                      setVideo((prev: typeof initialVideo) => ({
+                        ...prev,
+                        duration
+                      }))
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h1 className="text-3xl font-bold text-foreground">
+                  {video.title}
+                </h1>
+                
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <time>{new Date(video.createdAt).toLocaleDateString()}</time>
+                  {video.isPremium && (
+                    <>
+                      <span>•</span>
+                      <span className="text-primary">{video.price}€</span>
+                    </>
+                  )}
+                </div>
+
+                <div className="prose prose-lg dark:prose-invert max-w-none">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
+                  >
+                    {video.description}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

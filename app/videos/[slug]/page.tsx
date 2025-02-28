@@ -11,16 +11,39 @@ export default async function VideoPage({
   
   const video = await prisma.video.findUnique({
     where: { slug: params.slug },
-    include: { author: true }
+    include: { 
+      author: true
+    }
   })
 
   if (!video) {
     return null
   }
 
+  // Récupérer les statistiques de l'auteur séparément
+  const authorWithStats = await prisma.user.findUnique({
+    where: { id: video.author.id },
+    include: {
+      publicProfile: true,
+      _count: {
+        select: {
+          articles: true,
+          videos: true,
+          formations: true
+        }
+      }
+    }
+  })
+
+  // Combiner les données
+  const enrichedVideo = {
+    ...video,
+    author: authorWithStats
+  }
+
   return (
     <Suspense fallback={<div>Chargement...</div>}>
-      <VideoContent video={video} />
+      <VideoContent video={enrichedVideo} />
     </Suspense>
   )
 } 

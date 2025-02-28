@@ -39,7 +39,6 @@ export default function PremiumPage() {
       'Accès à tout le contenu premium',
       'Téléchargement des vidéos',
       'Support prioritaire',
-      'Pas de publicité',
       'Accès aux formations exclusives',
       'Certificats de complétion'
     ],
@@ -47,9 +46,7 @@ export default function PremiumPage() {
       'Contenu gratuit limité',
       'Pas de téléchargement',
       'Support standard',
-      'Publicités',
-      'Formations basiques uniquement',
-      'Pas de certificat'
+      'Pas d\'historique' 
     ]
   }
 

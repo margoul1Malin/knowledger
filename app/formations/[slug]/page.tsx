@@ -32,9 +32,30 @@ export default async function FormationPage({
     return null
   }
 
+  // Récupérer les statistiques de l'auteur séparément
+  const authorWithStats = await prisma.user.findUnique({
+    where: { id: formation.author.id },
+    include: {
+      publicProfile: true,
+      _count: {
+        select: {
+          articles: true,
+          videos: true,
+          formations: true
+        }
+      }
+    }
+  })
+
+  // Combiner les données
+  const enrichedFormation = {
+    ...formation,
+    author: authorWithStats
+  }
+
   return (
     <Suspense fallback={<div>Chargement...</div>}>
-      <FormationContent formation={formation} />
+      <FormationContent formation={enrichedFormation} />
     </Suspense>
   )
 } 

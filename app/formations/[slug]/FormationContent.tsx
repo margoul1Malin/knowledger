@@ -7,8 +7,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import Image from 'next/image'
-import { LockClosedIcon } from '@heroicons/react/24/outline'
 import VideoPlayer from '@/app/components/VideoPlayer'
+import AuthorCard from '@/app/components/ui/AuthorCard'
 
 interface VideoFormation {
   order: number;
@@ -78,11 +78,17 @@ export default function FormationContent({ formation: initialFormation }: { form
   return (
     <div className="min-h-screen bg-background pt-24">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Vidéo principale et informations */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Lecteur vidéo */}
-            <div className="aspect-video bg-card rounded-lg overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Sidebar avec AuthorCard */}
+          <div className="lg:col-span-3">
+            <div className="sticky top-24 space-y-6">
+              <AuthorCard author={formation.author} />
+            </div>
+          </div>
+
+          {/* Contenu principal */}
+          <div className="lg:col-span-6">
+            <div className="aspect-video bg-card rounded-lg overflow-hidden mb-8">
               {currentVideo && (
                 <VideoPlayer
                   url={currentVideo.videoUrl}
@@ -103,13 +109,10 @@ export default function FormationContent({ formation: initialFormation }: { form
               )}
             </div>
 
-            {/* Informations de la formation */}
             <div className="space-y-6">
               <h1 className="text-3xl font-bold">{formation.title}</h1>
               
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>Par {formation.author.name}</span>
-                <span>•</span>
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <time>{new Date(formation.createdAt).toLocaleDateString()}</time>
                 {formation.isPremium && (
                   <>
@@ -140,7 +143,7 @@ export default function FormationContent({ formation: initialFormation }: { form
           </div>
 
           {/* Sidebar avec la liste des vidéos */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-3">
             <div className="bg-card rounded-lg border border-border p-4 sticky top-24">
               <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
               <div className="space-y-2">
