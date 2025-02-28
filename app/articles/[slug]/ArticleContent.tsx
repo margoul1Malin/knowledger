@@ -8,6 +8,7 @@ import rehypeRaw from 'rehype-raw'
 import { useAuth } from '@/app/hooks/useAuth'
 import PurchaseModal from '@/app/components/PurchaseModal'
 import AuthorCard from '@/app/components/ui/AuthorCard'
+import Comments from '@/app/components/Comments'
 
 export default function ArticleContent({ article: initialArticle }: { article: any }) {
   const { user } = useAuth()
@@ -107,6 +108,11 @@ export default function ArticleContent({ article: initialArticle }: { article: a
                 >
                   {article.content}
                 </ReactMarkdown>
+              </div>
+
+              {/* Section commentaires */}
+              <div className="mt-12">
+                <Comments itemId={article.id} itemType="article" />
               </div>
             </article>
           </div>

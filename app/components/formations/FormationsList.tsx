@@ -2,22 +2,41 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { PlayIcon, ArrowUpRightIcon } from '@heroicons/react/24/outline'
+import { PlayIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
-import { Formation, User } from '@prisma/client'
 import { useAuth } from '@/app/hooks/useAuth'
 import PurchaseModal from '@/app/components/PurchaseModal'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Pagination from '@/app/components/ui/Pagination'
 import StarRating from '@/app/components/formations/StarRating'
 
-type FormationWithAuthor = Formation & {
+interface Formation {
+  id: string
+  title: string
+  description: string
+  imageUrl: string
+  isPremium: boolean
+  price: number | null
+  slug: string
   author: {
     name: string
     image: string | null
   }
   averageRating: number
   totalRatings: number
+  hasPurchased?: boolean
+}
+
+interface PaginationData {
+  total: number
+  pages: number
+  page: number
+  limit: number
+}
+
+interface FormationsListProps {
+  initialFormations: Formation[]
+  pagination: PaginationData
 }
 
 const container = {
@@ -35,29 +54,27 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
-export default function FormationsList() {
+export default function FormationsList({ initialFormations, pagination: initialPagination }: FormationsListProps) {
   const { user } = useAuth()
-  const [formations, setFormations] = useState<(FormationWithAuthor & { hasPurchased?: boolean })[]>([])
-  const [selectedFormation, setSelectedFormation] = useState<FormationWithAuthor | null>(null)
+  const [formations, setFormations] = useState<Formation[]>(initialFormations)
+  const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [pagination, setPagination] = useState({
-    total: 0,
-    pages: 0,
-    page: 1,
-    limit: 15
-  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [pagination, setPagination] = useState(initialPagination)
 
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const currentPage = parseInt(searchParams.get('page') || '1')
 
   useEffect(() => {
-    fetchFormations(currentPage)
-  }, [currentPage])
+    const page = parseInt(searchParams.get('page') || '1')
+    if (page !== pagination.page) {
+      fetchFormations(page)
+    }
+  }, [searchParams])
 
   const fetchFormations = async (page: number) => {
+    setIsLoading(true)
     try {
       const res = await fetch(`/api/formations?page=${page}`)
       if (!res.ok) throw new Error('Erreur lors de la récupération des formations')
@@ -78,9 +95,9 @@ export default function FormationsList() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleFormationClick = (formation: FormationWithAuthor & { hasPurchased?: boolean }) => {
+  const handleFormationClick = (formation: Formation) => {
     if (!formation.isPremium || formation.hasPurchased || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
-      window.location.href = `/formations/${formation.slug}`
+      router.push(`/formations/${formation.slug}`)
       return
     }
     
@@ -134,7 +151,7 @@ export default function FormationsList() {
                 <span className="text-sm text-muted-foreground">
                   Par {formation.author.name}
                 </span>
-                {formation.price && (
+                {formation.price && !formation.hasPurchased && (
                   <div className="text-primary font-semibold">
                     {formation.price}€
                   </div>
@@ -166,11 +183,13 @@ export default function FormationsList() {
         />
       )}
 
-      <Pagination
-        currentPage={pagination.page}
-        totalPages={pagination.pages}
-        onPageChange={handlePageChange}
-      />
+      <div className="mt-8">
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          onPageChange={handlePageChange}
+        />
+      </div>
     </>
   )
 } 

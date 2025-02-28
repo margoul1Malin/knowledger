@@ -41,6 +41,7 @@ model User {
   publicProfile PublicProfileAddons?
   messages    Message[]
   ratings     Rating[]  // Ajout de la relation inverse
+  comments    Comment[]
 }
 
 model Category {
@@ -71,6 +72,7 @@ model Article {
   category    Category @relation(fields: [categoryId], references: [id])
   categoryId  String   @db.ObjectId
   purchases   Purchase[]
+  comments    Comment[]
 }
 
 model Video {
@@ -93,6 +95,7 @@ model Video {
   formations  VideoFormation[]
   purchases   Purchase[]
   history     History[]
+  comments    Comment[]
 }
 
 model Formation {
@@ -115,6 +118,7 @@ model Formation {
   purchases   Purchase[]
   history     History[]
   ratings     Rating[]  // Nouvelle relation
+  comments    Comment[]
 }
 
 model VideoFormation {
@@ -223,6 +227,29 @@ model Message {
 
   @@index([userId])
   @@index([status])
+}
+
+model Comment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String   @db.ObjectId
+
+  // Relations polymorphiques
+  itemId      String   @db.ObjectId
+  itemType    String   // "article", "video", "formation"
+
+  // Relations inverses
+  article     Article?   @relation(fields: [itemId], references: [id])
+  video       Video?     @relation(fields: [itemId], references: [id])
+  formation   Formation? @relation(fields: [itemId], references: [id])
+
+  @@index([userId])
+  @@index([itemId, itemType])
 }
 
 model Rating {

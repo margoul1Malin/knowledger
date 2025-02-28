@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import VideoPlayer from '@/app/components/VideoPlayer'
 import AuthorCard from '@/app/components/ui/AuthorCard'
+import Comments from '@/app/components/Comments'
 
 export default function VideoContent({ video: initialVideo }: { video: any }) {
   const { user } = useAuth()
@@ -111,6 +112,11 @@ export default function VideoContent({ video: initialVideo }: { video: any }) {
                   >
                     {video.description}
                   </ReactMarkdown>
+                </div>
+
+                {/* Section commentaires */}
+                <div className="mt-12">
+                  <Comments itemId={video.id} itemType="video" />
                 </div>
               </div>
             </div>

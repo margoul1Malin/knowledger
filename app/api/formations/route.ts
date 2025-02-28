@@ -60,46 +60,71 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '15')
+    const limit = 15
     const skip = (page - 1) * limit
 
-    const [formations, total] = await Promise.all([
-      prisma.formation.findMany({
-        skip,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              name: true,
-              image: true
-            }
-          },
-          ratings: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      }),
-      prisma.formation.count()
-    ])
+    const session = await getServerSession(authOptions)
 
-    // Calculer la moyenne des notes pour chaque formation
-    const formationsWithRatings = formations.map(formation => {
+    // Récupérer le nombre total de formations
+    const total = await prisma.formation.count()
+
+    // Récupérer les formations pour la page actuelle
+    const formations = await prisma.formation.findMany({
+      skip,
+      take: limit,
+      include: {
+        author: {
+          select: {
+            name: true,
+            image: true
+          }
+        },
+        ratings: true,
+        _count: {
+          select: {
+            ratings: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    // Si l'utilisateur est connecté, récupérer ses achats
+    let userPurchases: { itemId: string }[] = []
+    if (session?.user?.email) {
+      userPurchases = await prisma.purchase.findMany({
+        where: {
+          user: {
+            email: session.user.email
+          },
+          type: 'formation'
+        },
+        select: {
+          itemId: true
+        }
+      })
+    }
+
+    // Enrichir les formations avec les informations d'achat et les notes moyennes
+    const enrichedFormations = formations.map(formation => {
       const ratings = formation.ratings || []
       const averageRating = ratings.length > 0
         ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
         : 0
 
-      const { ratings: _, ...formationWithoutRatings } = formation
       return {
-        ...formationWithoutRatings,
+        ...formation,
+        ratings: undefined, // On ne veut pas envoyer toutes les notes au client
         averageRating,
-        totalRatings: ratings.length
+        totalRatings: formation._count.ratings,
+        hasPurchased: userPurchases.some(p => p.itemId === formation.id)
       }
     })
 
     return NextResponse.json({
-      items: formationsWithRatings,
+      items: enrichedFormations,
       pagination: {
         total,
         pages: Math.ceil(total / limit),

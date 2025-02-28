@@ -11,6 +11,7 @@ import Image from 'next/image'
 import VideoPlayer from '@/app/components/VideoPlayer'
 import AuthorCard from '@/app/components/ui/AuthorCard'
 import StarRating from '@/app/components/formations/StarRating'
+import Comments from '@/app/components/Comments'
 
 interface VideoFormation {
   order: number;
@@ -228,6 +229,11 @@ export default function FormationContent({ formation: initialFormation }: { form
                 >
                   {formation.content}
                 </ReactMarkdown>
+              </div>
+
+              {/* Section commentaires */}
+              <div className="mt-12">
+                <Comments itemId={formation.id} itemType="formation" />
               </div>
             </div>
           </div>
