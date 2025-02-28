@@ -4,6 +4,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Formation } from '@prisma/client'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { Clock } from 'lucide-react'
+import { formatDuration } from '@/lib/utils'
+import StarRating from './StarRating'
 
 type FormationWithAuthor = Formation & {
   author: {
@@ -12,7 +16,33 @@ type FormationWithAuthor = Formation & {
   }
 }
 
+interface RatingData {
+  average: number
+  total: number
+}
+
 export default function FormationCard({ formation }: { formation: FormationWithAuthor }) {
+  const [ratingData, setRatingData] = useState<RatingData | null>(null)
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      try {
+        const response = await fetch(`/api/formations/${formation.id}/rate`)
+        if (response.ok) {
+          const data = await response.json()
+          setRatingData({
+            average: data.average,
+            total: data.total
+          })
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des notes:', error)
+      }
+    }
+
+    fetchRatings()
+  }, [formation.id])
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
@@ -46,7 +76,7 @@ export default function FormationCard({ formation }: { formation: FormationWithA
               {formation.duration && (
                 <>
                   <span>•</span>
-                  <span>{Math.round(formation.duration)} min</span>
+                  <span>{formatDuration(formation.duration)}</span>
                 </>
               )}
             </div>
@@ -55,6 +85,19 @@ export default function FormationCard({ formation }: { formation: FormationWithA
                 {formation.price}€
               </div>
             )}
+          </div>
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-2">
+              <StarRating 
+                rating={ratingData?.average || 0} 
+                size="sm"
+              />
+              {ratingData?.total > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  ({ratingData.total})
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </Link>

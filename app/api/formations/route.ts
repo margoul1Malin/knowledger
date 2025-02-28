@@ -56,50 +56,50 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '15')
     const skip = (page - 1) * limit
 
-    const session = await getServerSession(authOptions)
-    const userId = session?.user?.id
-
-    const [total, items] = await Promise.all([
-      prisma.formation.count(),
+    const [formations, total] = await Promise.all([
       prisma.formation.findMany({
         skip,
         take: limit,
         include: {
           author: {
             select: {
-              id: true,
               name: true,
               image: true
             }
           },
-          purchases: userId ? {
-            where: {
-              userId: userId
-            }
-          } : false
+          ratings: true
         },
         orderBy: {
           createdAt: 'desc'
         }
-      })
+      }),
+      prisma.formation.count()
     ])
 
-    // Ajouter hasPurchased à chaque formation
-    const formationsWithPurchaseInfo = items.map(formation => ({
-      ...formation,
-      hasPurchased: formation.purchases && formation.purchases.length > 0,
-      purchases: undefined // Supprimer les données de purchase pour alléger la réponse
-    }))
+    // Calculer la moyenne des notes pour chaque formation
+    const formationsWithRatings = formations.map(formation => {
+      const ratings = formation.ratings || []
+      const averageRating = ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+        : 0
+
+      const { ratings: _, ...formationWithoutRatings } = formation
+      return {
+        ...formationWithoutRatings,
+        averageRating,
+        totalRatings: ratings.length
+      }
+    })
 
     return NextResponse.json({
-      items: formationsWithPurchaseInfo,
+      items: formationsWithRatings,
       pagination: {
         total,
         pages: Math.ceil(total / limit),
@@ -108,10 +108,7 @@ export async function GET(request: Request) {
       }
     })
   } catch (error) {
-    console.error('Erreur:', error)
-    return NextResponse.json(
-      { error: 'Erreur serveur' },
-      { status: 500 }
-    )
+    console.error("[FORMATIONS_GET]", error)
+    return new NextResponse("Erreur interne", { status: 500 })
   }
 } 

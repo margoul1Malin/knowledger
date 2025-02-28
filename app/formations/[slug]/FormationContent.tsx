@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/app/hooks/useAuth'
+import { useToast } from '@/components/ui/use-toast'
 import PurchaseModal from '@/app/components/PurchaseModal'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -9,6 +10,7 @@ import rehypeRaw from 'rehype-raw'
 import Image from 'next/image'
 import VideoPlayer from '@/app/components/VideoPlayer'
 import AuthorCard from '@/app/components/ui/AuthorCard'
+import StarRating from '@/app/components/formations/StarRating'
 
 interface VideoFormation {
   order: number;
@@ -27,6 +29,11 @@ export default function FormationContent({ formation: initialFormation }: { form
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false)
+  const [userRating, setUserRating] = useState<number | null>(null)
+  const [averageRating, setAverageRating] = useState<number | null>(null)
+  const [totalRatings, setTotalRatings] = useState<number | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -43,6 +50,67 @@ export default function FormationContent({ formation: initialFormation }: { form
 
     checkAccess()
   }, [formation.slug])
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      try {
+        const res = await fetch(`/api/formations/${formation.slug}`)
+        const data = await res.json()
+        setAverageRating(data.averageRating)
+        setTotalRatings(data.totalRatings)
+        if (data.userRating) {
+          setUserRating(data.userRating)
+        }
+      } catch (error) {
+        console.error('Erreur:', error)
+      }
+    }
+
+    if (formation.canAccess) {
+      fetchRatings()
+    }
+  }, [formation.slug, formation.canAccess])
+
+  const handleRate = async (rating: number) => {
+    try {
+      const res = await fetch(`/api/formations/${formation.slug}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating })
+      })
+
+      if (!res.ok) throw new Error()
+
+      const data = await res.json()
+      setUserRating(rating)
+      setAverageRating(data.average)
+      setTotalRatings(data.total)
+      
+      toast({
+        title: "Merci !",
+        description: "Votre note a bien été prise en compte",
+      })
+      
+      setShowRatingPrompt(false)
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'enregistrer votre note",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Afficher l'incitation à noter après 5 minutes de visionnage
+  useEffect(() => {
+    if (formation.canAccess && !userRating) {
+      const timer = setTimeout(() => {
+        setShowRatingPrompt(true)
+      }, 5 * 60 * 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [formation.canAccess, userRating])
 
   if (isLoading) {
     return <div>Chargement...</div>
@@ -83,6 +151,28 @@ export default function FormationContent({ formation: initialFormation }: { form
           <div className="lg:col-span-3">
             <div className="sticky top-24 space-y-6">
               <AuthorCard author={formation.author} />
+              
+              {/* Composant de notation */}
+              {formation.canAccess && (
+                <div className="bg-card rounded-lg border border-border p-4">
+                  <h3 className="font-semibold mb-4">Noter cette formation</h3>
+                  <div className="space-y-2">
+                    <StarRating
+                      rating={userRating || 0}
+                      interactive={true}
+                      onRate={handleRate}
+                      size="lg"
+                    />
+                    {averageRating !== null && totalRatings !== null && (
+                      <p className="text-sm text-muted-foreground">
+                        Note moyenne : {averageRating.toFixed(1)}/5
+                        <br />
+                        {totalRatings} avis
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -178,6 +268,29 @@ export default function FormationContent({ formation: initialFormation }: { form
               </div>
             </div>
           </div>
+
+          {/* Popup d'incitation à noter */}
+          {showRatingPrompt && !userRating && (
+            <div className="fixed bottom-4 right-4 bg-card border border-border rounded-lg p-4 shadow-lg max-w-sm animate-in slide-in-from-bottom">
+              <h4 className="font-semibold mb-2">Que pensez-vous de cette formation ?</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Votre avis nous aide à améliorer nos contenus
+              </p>
+              <div className="space-y-4">
+                <StarRating
+                  interactive={true}
+                  onRate={handleRate}
+                  size="lg"
+                />
+                <button
+                  onClick={() => setShowRatingPrompt(false)}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Plus tard
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

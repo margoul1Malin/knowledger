@@ -40,6 +40,7 @@ model User {
   notifications Notification[]
   publicProfile PublicProfileAddons?
   messages    Message[]
+  ratings     Rating[]  // Ajout de la relation inverse
 }
 
 model Category {
@@ -113,6 +114,7 @@ model Formation {
   videos      VideoFormation[]
   purchases   Purchase[]
   history     History[]
+  ratings     Rating[]  // Nouvelle relation
 }
 
 model VideoFormation {
@@ -221,4 +223,20 @@ model Message {
 
   @@index([userId])
   @@index([status])
+}
+
+model Rating {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  rating      Int       // Nombre d'étoiles (0-5)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String    @db.ObjectId
+  formation   Formation @relation(fields: [formationId], references: [id])
+  formationId String    @db.ObjectId
+
+  @@unique([userId, formationId])  // Un utilisateur ne peut noter qu'une fois
+  @@index([formationId])
 } 

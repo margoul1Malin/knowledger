@@ -9,9 +9,15 @@ import { useAuth } from '@/app/hooks/useAuth'
 import PurchaseModal from '@/app/components/PurchaseModal'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Pagination from '@/app/components/ui/Pagination'
+import StarRating from '@/app/components/formations/StarRating'
 
 type FormationWithAuthor = Formation & {
-  author: User
+  author: {
+    name: string
+    image: string | null
+  }
+  averageRating: number
+  totalRatings: number
 }
 
 const container = {
@@ -124,11 +130,24 @@ export default function FormationsList() {
               <p className="text-muted-foreground mb-4 line-clamp-2">
                 {formation.description}
               </p>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">
                   Par {formation.author.name}
                 </span>
-                <ArrowUpRightIcon className="h-5 w-5 text-primary" />
+                {formation.price && (
+                  <div className="text-primary font-semibold">
+                    {formation.price}€
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <StarRating 
+                  rating={formation.averageRating} 
+                  size="sm" 
+                />
+                <span className="text-xs text-muted-foreground">
+                  ({formation.totalRatings})
+                </span>
               </div>
             </div>
           </motion.article>
