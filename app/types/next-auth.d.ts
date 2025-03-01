@@ -1,29 +1,36 @@
-import { DefaultSession } from 'next-auth'
+import { UserRole } from "@prisma/client"
+import "next-auth"
+import { JWT } from "next-auth/jwt"
 
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  FORMATOR = 'FORMATOR',
-  PREMIUM = 'PREMIUM',
-  NORMAL = 'NORMAL'
-}
+declare module "next-auth" {
+  interface User {
+    id: string
+    email: string
+    name?: string
+    image?: string | null
+    role?: UserRole
+    requires2FA?: boolean
+  }
 
-declare module 'next-auth' {
   interface Session {
     user: {
       id: string
-      role: UserRole
-    } & DefaultSession['user']
-  }
-
-  interface User {
-    id: string
-    role: UserRole
+      email: string
+      name?: string
+      image?: string | null
+      role?: UserRole
+      requires2FA?: boolean
+    }
   }
 }
 
-declare module 'next-auth/jwt' {
+declare module "next-auth/jwt" {
   interface JWT {
-    id: string
-    role: UserRole
+    id?: string
+    email?: string
+    name?: string
+    image?: string | null
+    role?: UserRole
+    requires2FA?: boolean
   }
 } 

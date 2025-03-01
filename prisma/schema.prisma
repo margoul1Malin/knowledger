@@ -34,6 +34,10 @@ model User {
   role      UserRole @default(NORMAL)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  twoFactorEnabled Boolean @default(false)
+  twoFactorMethod String? // "EMAIL" ou "PHONE"
+  phoneNumber     String?
+  twoFactorAuth   TwoFactorAuth?
 
   articles    Article[]
   videos      Video[]
@@ -302,4 +306,13 @@ model Subscription {
   cancelledAt         DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+}
+
+model TwoFactorAuth {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  secret    String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 } 

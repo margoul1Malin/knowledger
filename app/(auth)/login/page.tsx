@@ -27,6 +27,11 @@ export default function Login() {
       })
 
       if (result?.error) {
+        // Vérifier si l'erreur contient une URL de redirection 2FA
+        if (result.error.includes('/auth/verify')) {
+          router.push(result.error)
+          return
+        }
         setError('Identifiants incorrects')
       } else {
         router.push('/')

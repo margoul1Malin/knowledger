@@ -11,10 +11,19 @@ import {
   SparklesIcon,
   BellIcon,
   ShoppingBagIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 
-const links = [
+type NavLink = {
+  href: string
+  label: string
+  icon: React.ElementType
+  exact?: boolean
+  roles?: UserRole[]
+}
+
+const links: NavLink[] = [
   {
     href: '/profile',
     label: 'Infos Personnelles',
@@ -50,6 +59,11 @@ const links = [
     icon: BellIcon
   },
   {
+    href: '/profile/securite',
+    label: 'Sécurité',
+    icon: ShieldCheckIcon
+  },
+  {
     href: '/profile/edit',
     label: 'Public Profile',
     icon: PencilSquareIcon,
@@ -66,12 +80,14 @@ export default function ProfileSidebar() {
     return pathname.startsWith(href)
   }
 
+  const userRole = session?.user?.role as UserRole | undefined
+
   return (
     <aside className="w-64 fixed left-0 top-0 h-screen pt-24 px-4 border-r border-border bg-background">
       <nav className="space-y-1">
         {links.map((link) => {
           // Si le lien nécessite un rôle spécifique et que l'utilisateur n'a pas ce rôle, on ne l'affiche pas
-          if (link.roles && !link.roles.includes(session?.user?.role as UserRole)) {
+          if (link.roles && (!userRole || !link.roles.includes(userRole))) {
             return null
           }
 
