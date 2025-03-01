@@ -14,6 +14,10 @@ interface HistoryItem {
     title: string
     coverImage: string
     slug: string
+    formation?: {
+      slug: string
+      videoOrder: number
+    }
   }
   formation?: {
     title: string
@@ -43,18 +47,22 @@ export default function HistorySection() {
       }
 
       const data = await response.json()
-      console.log('History data:', data)
       
       if (data.success && Array.isArray(data.data)) {
-        setHistory(data.data)
+        // Filtrer pour ne garder que les vidéos qui ne font pas partie d'une formation
+        const filteredData = data.data.filter((item: HistoryItem) => 
+          item.type === 'video' && !item.video?.formation
+        )
+        setHistory(filteredData)
+        setError(null)
       } else {
         console.error('Format de données invalide:', data)
         setHistory([])
+        setError('Format de données invalide')
       }
-      setError(null)
     } catch (error) {
-      console.error('Erreur:', error)
-      setError(error instanceof Error ? error.message : 'Erreur inconnue')
+      console.error('Erreur lors de la récupération de l\'historique:', error)
+      setError('Impossible de charger l\'historique')
       setHistory([])
     } finally {
       setLoading(false)
@@ -152,21 +160,20 @@ export default function HistorySection() {
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Continuer à regarder</h2>
+          <h2 className="text-2xl font-bold">Vidéos récentes</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Reprenez où vous vous étiez arrêté
+            Continuez à regarder vos vidéos
           </p>
         </div>
         {history.length > 0 && (
           <button
             onClick={clearHistory}
             disabled={isDeleting}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:text-red-700 disabled:opacity-50 hover:bg-red-50 rounded-lg transition-colors"
+            className="text-sm text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
           >
-            <TrashIcon className="w-4 h-4" />
-            {isDeleting ? 'Suppression...' : 'Vider l\'historique'}
+            Effacer l'historique
           </button>
         )}
       </div>
@@ -182,13 +189,18 @@ export default function HistorySection() {
             const content = item.type === 'video' ? item.video : item.formation
             if (!content) return null
 
+            // Déterminer l'URL de redirection
+            const href = item.type === 'video' && item.video?.formation
+              ? `/formations/${item.video.formation.slug}?video=${item.video.formation.videoOrder}&t=${item.timestamp}`
+              : `/${item.type}s/${content.slug}?t=${item.timestamp}`
+
             return (
               <div
                 key={item.id}
                 className="flex items-center gap-4 p-4 bg-muted/50 hover:bg-muted rounded-lg group transition-colors"
               >
                 <Link
-                  href={`/${item.type}s/${content.slug}?t=${item.timestamp}`}
+                  href={href}
                   className="flex-1 flex items-center gap-4"
                 >
                   <div className="relative w-32 h-20 rounded-lg overflow-hidden">

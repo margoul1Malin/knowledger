@@ -25,6 +25,10 @@ interface Formation {
   averageRating: number
   totalRatings: number
   hasPurchased?: boolean
+  lastWatched?: {
+    videoOrder: number
+    timestamp: number
+  } | null
 }
 
 interface PaginationData {
@@ -97,6 +101,10 @@ export default function FormationsList({ initialFormations, pagination: initialP
 
   const handleFormationClick = (formation: Formation) => {
     if (!formation.isPremium || formation.hasPurchased || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
+      if (formation.lastWatched) {
+        router.push(`/formations/${formation.slug}?video=${formation.lastWatched.videoOrder}&t=${formation.lastWatched.timestamp}`)
+        return
+      }
       router.push(`/formations/${formation.slug}`)
       return
     }

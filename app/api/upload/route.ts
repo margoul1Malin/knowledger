@@ -9,16 +9,23 @@ const ALLOWED_FORMATS = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'image/jpeg',
-  'image/png'
+  'image/png',
+  'video/mp4',
+  'video/quicktime',
+  'video/x-msvideo'
 ]
 
-// Taille maximale de fichier (5MB)
-const MAX_FILE_SIZE = 5 * 1024 * 1024
+// Taille maximale de fichier (500MB pour les vidéos, 5MB pour les autres)
+const MAX_FILE_SIZE = {
+  video: 500 * 1024 * 1024,
+  other: 5 * 1024 * 1024
+}
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as Blob
+    const type = formData.get('type') as string || 'other' // 'video' ou 'other'
 
     if (!file) {
       return NextResponse.json(
@@ -33,46 +40,52 @@ export async function POST(request: Request) {
     // Vérifier le type de fichier
     if (!ALLOWED_FORMATS.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Format de fichier non autorisé. Formats acceptés : PDF, DOCX, JPG, PNG' },
+        { error: 'Format de fichier non autorisé. Formats acceptés : PDF, DOCX, JPG, PNG, MP4, MOV, AVI' },
         { status: 400 }
       )
     }
 
     // Vérifier la taille du fichier
-    if (file.size > MAX_FILE_SIZE) {
+    const maxSize = type === 'video' ? MAX_FILE_SIZE.video : MAX_FILE_SIZE.other
+    if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'Le fichier est trop volumineux. Taille maximale : 5MB' },
+        { error: `Le fichier est trop volumineux. Taille maximale : ${type === 'video' ? '500MB' : '5MB'}` },
         { status: 400 }
       )
     }
 
     // Créer le dossier d'upload s'il n'existe pas
     const rootDir = process.cwd()
-    console.log('Répertoire racine:', rootDir)
-
     const publicDir = path.join(rootDir, 'public')
     const uploadsDir = path.join(publicDir, 'uploads')
-    const formatorDir = path.join(uploadsDir, 'formator')
-
-    console.log('Structure des dossiers:')
-    console.log('- Public:', publicDir)
-    console.log('- Uploads:', uploadsDir)
-    console.log('- Formator:', formatorDir)
+    
+    // Déterminer le dossier de destination en fonction du type
+    let destinationDir
+    if (file.type.startsWith('video/')) {
+      destinationDir = path.join(uploadsDir, 'videos')
+    } else if (file.type.startsWith('image/')) {
+      destinationDir = path.join(uploadsDir, 'images')
+    } else {
+      destinationDir = path.join(uploadsDir, 'documents')
+    }
 
     // Créer les dossiers de manière récursive
-    if (!fs.existsSync(formatorDir)) {
-      await mkdir(formatorDir, { recursive: true })
-      console.log('Dossiers créés')
+    if (!fs.existsSync(destinationDir)) {
+      await mkdir(destinationDir, { recursive: true })
+      console.log('Dossiers créés:', destinationDir)
     }
 
     // Générer un nom de fichier unique avec la bonne extension
-    const fileExtension = file.type === 'application/pdf' ? '.pdf' :
+    const fileExtension = file.type === 'video/mp4' ? '.mp4' :
+                         file.type === 'video/quicktime' ? '.mov' :
+                         file.type === 'video/x-msvideo' ? '.avi' :
+                         file.type === 'application/pdf' ? '.pdf' :
                          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ? '.docx' :
                          file.type === 'image/jpeg' ? '.jpg' :
                          '.png'
     
     const fileName = `${uuidv4()}${fileExtension}`
-    const filePath = path.join(formatorDir, fileName)
+    const filePath = path.join(destinationDir, fileName)
 
     console.log('Chemin complet du fichier:', filePath)
 
@@ -86,7 +99,9 @@ export async function POST(request: Request) {
       if (fs.existsSync(filePath)) {
         console.log('Fichier vérifié - existe bien sur le disque')
         // Retourner l'URL publique du fichier
-        const fileUrl = `/uploads/formator/${fileName}`
+        const fileUrl = `/uploads/${file.type.startsWith('video/') ? 'videos' : 
+                                  file.type.startsWith('image/') ? 'images' : 
+                                  'documents'}/${fileName}`
         console.log('URL du fichier:', fileUrl)
         
         return NextResponse.json({ url: fileUrl })
@@ -112,6 +127,7 @@ export async function POST(request: Request) {
 // Configuration pour augmenter la limite de taille des fichiers
 export const config = {
   api: {
-    bodyParser: false
+    bodyParser: false,
+    responseLimit: '500mb'
   }
 } 

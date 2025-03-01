@@ -45,6 +45,7 @@ model User {
   messages    Message[]
   ratings     Rating[]  // Ajout de la relation inverse
   comments    Comment[]
+  subscription Subscription?
 }
 
 model Category {
@@ -286,4 +287,19 @@ model FormatorQuery {
   status      String      @default("PENDING") // PENDING, APPROVED, REJECTED
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+}
+
+model Subscription {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String    @unique @db.ObjectId
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId    String?
+  stripeSubscriptionId String?
+  stripePriceId       String?
+  plan                String    @default("MONTHLY") // DAILY, MONTHLY, YEARLY
+  isActive            Boolean   @default(false)
+  endDate             DateTime?
+  cancelledAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 } 

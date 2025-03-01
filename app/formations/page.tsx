@@ -39,9 +39,12 @@ export default async function FormationsPage({
     }
   })
 
-  // Si l'utilisateur est connecté, récupérer ses achats
+  // Si l'utilisateur est connecté, récupérer ses achats et son historique
   let userPurchases: { itemId: string }[] = []
+  let userHistory: any[] = []
+  
   if (session?.user?.email) {
+    // Récupérer les achats
     userPurchases = await prisma.purchase.findMany({
       where: {
         user: {
@@ -53,21 +56,59 @@ export default async function FormationsPage({
         itemId: true
       }
     })
+
+    // Récupérer l'historique des vidéos
+    userHistory = await prisma.history.findMany({
+      where: {
+        userId: session.user.id,
+        type: 'video'
+      },
+      include: {
+        video: {
+          include: {
+            formations: {
+              include: {
+                formation: {
+                  select: {
+                    id: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        lastViewedAt: 'desc'
+      }
+    })
   }
 
-  // Enrichir les formations avec les informations d'achat et les notes moyennes
+  // Enrichir les formations avec les informations d'achat, les notes moyennes et l'historique
   const enrichedFormations = formations.map(formation => {
     const ratings = formation.ratings || []
     const averageRating = ratings.length > 0
-      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+      ? ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / ratings.length
       : 0
+
+    // Trouver la dernière vidéo regardée pour cette formation
+    const lastWatchedVideo = userHistory.find(h => 
+      h.video?.formations?.some((vf: any) => vf.formation.id === formation.id)
+    )
+
+    // Si une vidéo a été trouvée, récupérer l'ordre et le timestamp
+    const lastWatched = lastWatchedVideo ? {
+      videoOrder: lastWatchedVideo.video.formations[0].order,
+      timestamp: lastWatchedVideo.timestamp
+    } : null
 
     return {
       ...formation,
-      ratings: undefined, // On ne veut pas envoyer toutes les notes au client
+      ratings: undefined,
       averageRating,
       totalRatings: formation._count.ratings,
-      hasPurchased: userPurchases.some(p => p.itemId === formation.id)
+      hasPurchased: userPurchases.some(p => p.itemId === formation.id),
+      lastWatched
     }
   })
 

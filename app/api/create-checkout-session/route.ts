@@ -26,7 +26,9 @@ export async function POST(req: Request) {
 
     const priceId = plan === 'yearly' 
       ? process.env.STRIPE_PRICE_ID_YEARLY 
-      : process.env.STRIPE_PRICE_ID_MONTHLY
+      : plan === 'monthly'
+      ? process.env.STRIPE_PRICE_ID_MONTHLY
+      : process.env.STRIPE_PRICE_ID_DAILY
 
     if (!priceId) {
       throw new Error('STRIPE_PRICE_ID is not defined')

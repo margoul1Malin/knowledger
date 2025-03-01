@@ -1,118 +1,210 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import Link from 'next/link'
-import { UserRole } from '@prisma/client'
-import { SparklesIcon, ShieldCheckIcon, VideoCameraIcon } from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { useToast } from '@/components/ui/use-toast'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import { AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
+
+interface Subscription {
+  endDate: string
+  isActive: boolean
+  plan: string
+  cancelledAt?: string | null
+}
 
 export default function AbonnementPage() {
-  const { data: session } = useSession()
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+  const router = useRouter()
 
-  const renderContent = () => {
-    switch (session?.user?.role) {
-      case UserRole.ADMIN:
-        return (
-          <div className="bg-card border border-border rounded-xl p-8">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <ShieldCheckIcon className="w-8 h-8 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Administrateur</h2>
-                <p className="text-muted-foreground">
-                  Vous avez accès à toutes les fonctionnalités de la plateforme
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              En tant qu'administrateur, vous pouvez gérer les utilisateurs, le contenu et les paramètres de la plateforme.
-            </p>
-          </div>
-        )
+  useEffect(() => {
+    fetchSubscription()
+  }, [])
 
-      case UserRole.FORMATOR:
-        return (
-          <div className="bg-card border border-border rounded-xl p-8">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <VideoCameraIcon className="w-8 h-8 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Formateur</h2>
-                <p className="text-muted-foreground">
-                  Vous pouvez créer et publier du contenu sur la plateforme
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              En tant que formateur, vous pouvez créer des articles, des vidéos et des formations pour partager vos connaissances.
-            </p>
-          </div>
-        )
-
-      case UserRole.PREMIUM:
-        return (
-          <div className="bg-card border border-border rounded-xl p-8">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <SparklesIcon className="w-8 h-8 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Premium</h2>
-                <p className="text-muted-foreground">
-                  Merci de votre confiance !
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              Vous avez accès à tout le contenu premium de la plateforme. Profitez de votre expérience d'apprentissage !
-            </p>
-          </div>
-        )
-
-      default:
-        return (
-          <div className="bg-card border border-border rounded-xl p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold mb-2">
-                  Passez à l'offre Premium
-                </h2>
-                <p className="text-muted-foreground">
-                  Accédez à tout le contenu et profitez de fonctionnalités exclusives.
-                </p>
-                <ul className="mt-6 space-y-3">
-                  <li className="flex items-center gap-2">
-                    <SparklesIcon className="w-5 h-5 text-primary" />
-                    <span>Accès à tout le contenu premium</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <SparklesIcon className="w-5 h-5 text-primary" />
-                    <span>Téléchargement des ressources</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <SparklesIcon className="w-5 h-5 text-primary" />
-                    <span>Support prioritaire</span>
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="/premium"
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                <SparklesIcon className="h-5 w-5" />
-                <span>Devenir Premium</span>
-              </Link>
-            </div>
-          </div>
-        )
+  const fetchSubscription = async () => {
+    try {
+      const res = await fetch('/api/subscription')
+      if (res.ok) {
+        const data = await res.json()
+        setSubscription(data)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'abonnement:', error)
     }
   }
 
+  const handleCancel = async () => {
+    setIsLoading(true)
+    try {
+      const res = await fetch('/api/subscription/cancel', {
+        method: 'POST'
+      })
+
+      if (!res.ok) throw new Error('Erreur lors de la résiliation')
+
+      const data = await res.json()
+      toast({
+        title: 'Abonnement résilié',
+        description: 'Votre abonnement sera actif jusqu\'à la fin de la période en cours.',
+      })
+      
+      fetchSubscription() // Rafraîchir les données
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de résilier l\'abonnement.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRenew = () => {
+    router.push('/premium') // Rediriger vers la page de souscription
+  }
+
+  const renderSubscriptionInfo = () => {
+    const planLabel = subscription?.plan === 'YEARLY' 
+      ? 'annuel' 
+      : subscription?.plan === 'MONTHLY'
+      ? 'mensuel'
+      : 'journalier'
+
+    const endDate = subscription?.endDate 
+      ? new Date(subscription.endDate).toLocaleDateString('fr-FR')
+      : 'Non disponible'
+
+    const isCancelled = subscription?.cancelledAt !== null
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Votre abonnement Premium {planLabel}</CardTitle>
+          <CardDescription>
+            Gérez votre abonnement et accédez à tous les avantages premium
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Badge variant={subscription?.isActive ? 'default' : 'destructive'}>
+                {subscription?.isActive ? 'Actif' : 'Inactif'}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {subscription?.isActive 
+                  ? 'Votre abonnement est actif' 
+                  : 'Votre abonnement n\'est plus actif'}
+              </span>
+            </div>
+            
+            {isCancelled && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-5 w-5 text-primary" />
+                  <span>Date de fin : {endDate}</span>
+                </div>
+
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Votre abonnement a été résilié mais reste actif jusqu'à la fin de la période payée.
+                    Vous pouvez renouveler votre abonnement à tout moment pour continuer à profiter
+                    des avantages premium.
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="mt-4">
+              <h3 className="font-medium mb-2">Détails du plan</h3>
+              <div className="text-sm text-muted-foreground">
+                <p>Type : Premium {planLabel}</p>
+                <p>Prix : {subscription?.plan === 'YEARLY' 
+                  ? '249.99€/an' 
+                  : subscription?.plan === 'MONTHLY'
+                  ? '24.99€/mois'
+                  : '2.99€/jour'
+                }</p>
+                <p>Prochaine facturation : {endDate}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          {isCancelled ? (
+            <Button 
+              onClick={handleRenew}
+              className="w-full"
+            >
+              Renouveler l&apos;abonnement
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleCancel}
+              variant="destructive"
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Résiliation en cours...' : 'Résilier'}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    )
+  }
+
+  const renderContent = () => {
+    if (!subscription) {
+      return (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle>Aucun abonnement actif</CardTitle>
+            <CardDescription>
+              Vous n'avez pas d'abonnement premium en cours.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button 
+              onClick={handleRenew} 
+              className="w-full"
+            >
+              Devenir Premium
+            </Button>
+          </CardFooter>
+        </Card>
+      )
+    }
+
+    return renderSubscriptionInfo()
+  }
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Abonnement</h1>
-      {renderContent()}
+    <div className="min-h-screen bg-background pt-24">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Gestion de l'abonnement</h1>
+            <p className="text-muted-foreground mt-2">
+              Gérez votre abonnement et accédez à vos informations de facturation
+            </p>
+          </div>
+
+          {renderContent()}
+        </div>
+      </div>
     </div>
   )
 } 

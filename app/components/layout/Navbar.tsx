@@ -88,7 +88,7 @@ const Navbar = () => {
     { name: 'Formations', href: '/formations', icon: AcademicCapIcon },
     { name: 'Formateurs', href: '/publicprofiles', icon: UserGroupIcon },
     ...(user?.role === 'NORMAL' ? [{ name: 'Premium', href: '/premium', icon: SparklesIcon }] : []),
-    ...(canCreateContent ? [{ name: 'Mon Contenu', href: '/create-content', icon: PencilSquareIcon }] : []),
+    ...(canCreateContent ? [{ name: 'Create', href: '/create-content', icon: PencilSquareIcon }] : []),
     ...(isAdmin ? [{ name: 'Administration', href: '/admin', icon: Cog6ToothIcon }] : []),
   ]
 

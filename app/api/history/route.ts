@@ -15,6 +15,103 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
     }
 
+    // Vérifier si on demande les formations suivies
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type')
+
+    if (type === 'formations-progress') {
+      // Récupérer toutes les vidéos regardées groupées par formation
+      const watchedVideos = await prisma.history.findMany({
+        where: {
+          userId: session.user.id,
+          type: 'video'
+        },
+        include: {
+          video: {
+            select: {
+              id: true,
+              formations: {
+                select: {
+                  formation: {
+                    select: {
+                      id: true,
+                      title: true,
+                      imageUrl: true,
+                      slug: true,
+                      videos: {
+                        select: {
+                          order: true,
+                          video: {
+                            select: {
+                              id: true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  order: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          lastViewedAt: 'desc'
+        }
+      })
+
+      // Regrouper par formation
+      const formationsProgress = watchedVideos.reduce((acc, history) => {
+        const videoFormation = history.video?.formations[0]
+        if (!videoFormation) return acc
+
+        const formation = videoFormation.formation
+        if (!formation) return acc
+
+        if (!acc[formation.id]) {
+          acc[formation.id] = {
+            id: formation.id,
+            title: formation.title,
+            imageUrl: formation.imageUrl,
+            slug: formation.slug,
+            totalVideos: formation.videos.length,
+            watchedVideos: new Set(),
+            lastWatchedVideo: {
+              order: videoFormation.order,
+              timestamp: history.timestamp
+            }
+          }
+        }
+
+        acc[formation.id].watchedVideos.add(history.video.id)
+
+        // Mettre à jour la dernière vidéo regardée si celle-ci est plus récente
+        if (history.lastViewedAt > acc[formation.id].lastWatchedVideo.lastViewedAt) {
+          acc[formation.id].lastWatchedVideo = {
+            order: videoFormation.order,
+            timestamp: history.timestamp,
+            lastViewedAt: history.lastViewedAt
+          }
+        }
+
+        return acc
+      }, {})
+
+      // Transformer en tableau et calculer les pourcentages
+      const formationsArray = Object.values(formationsProgress).map(formation => ({
+        ...formation,
+        progress: (formation.watchedVideos.size / formation.totalVideos) * 100,
+        watchedVideos: formation.watchedVideos.size
+      }))
+
+      return NextResponse.json({
+        success: true,
+        data: formationsArray
+      })
+    }
+
+    // Sinon, retourner l'historique normal
     const history = await prisma.history.findMany({
       where: {
         userId: session.user.id
@@ -25,7 +122,18 @@ export async function GET(request: Request) {
             id: true,
             title: true,
             coverImage: true,
-            slug: true
+            slug: true,
+            formations: {
+              select: {
+                formation: {
+                  select: {
+                    slug: true
+                  }
+                },
+                order: true
+              },
+              take: 1
+            }
           }
         },
         formation: {
@@ -36,10 +144,25 @@ export async function GET(request: Request) {
             slug: true
           }
         }
+      },
+      orderBy: {
+        lastViewedAt: 'desc'
       }
     })
 
-    return NextResponse.json({ success: true, data: history })
+    // Transformer les données pour avoir une structure plus propre
+    const formattedHistory = history.map(item => ({
+      ...item,
+      video: item.video ? {
+        ...item.video,
+        formation: item.video.formations?.[0] ? {
+          slug: item.video.formations[0].formation.slug,
+          videoOrder: item.video.formations[0].order
+        } : null
+      } : null
+    }))
+
+    return NextResponse.json({ success: true, data: formattedHistory })
   } catch (error) {
     console.error('Erreur:', error)
     return NextResponse.json(

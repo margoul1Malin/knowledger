@@ -12,7 +12,7 @@ import {
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
-type PlanType = 'monthly' | 'yearly'
+type PlanType = 'daily' | 'monthly' | 'yearly'
 
 export default function PremiumPage() {
   const { data: session } = useSession()
@@ -21,10 +21,16 @@ export default function PremiumPage() {
   const [error, setError] = useState<string | null>(null)
 
   const plans = {
+    daily: {
+      id: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_DAILY,
+      price: '2.99',
+      name: 'Journalier'
+    },
     monthly: {
       id: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY,
       price: '24.99',
-      name: 'Mensuel'
+      name: 'Mensuel',
+      savings: '65€ d\'économie/an'
     },
     yearly: {
       id: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_YEARLY,
@@ -139,8 +145,8 @@ export default function PremiumPage() {
 
             {/* Sélection du plan */}
             <div className="bg-card rounded-lg p-2 mb-6">
-              <div className="grid grid-cols-2 gap-2">
-                {(['monthly', 'yearly'] as const).map((plan) => (
+              <div className="grid grid-cols-3 gap-2">
+                {(['daily', 'monthly', 'yearly'] as const).map((plan) => (
                   <button
                     key={plan}
                     onClick={() => setSelectedPlan(plan)}
@@ -152,7 +158,7 @@ export default function PremiumPage() {
                   >
                     {plans[plan].name}
                     <div className="text-xs opacity-80">
-                      {plan === 'yearly' && plans[plan].savings}
+                      {plans[plan].savings}
                     </div>
                   </button>
                 ))}
@@ -163,7 +169,7 @@ export default function PremiumPage() {
               <div className="text-3xl font-bold">
                 {plans[selectedPlan].price}€
                 <span className="text-lg font-normal text-muted-foreground">
-                  /{selectedPlan === 'monthly' ? 'mois' : 'an'}
+                  /{selectedPlan === 'yearly' ? 'an' : selectedPlan === 'monthly' ? 'mois' : 'jour'}
                 </span>
               </div>
             </div>

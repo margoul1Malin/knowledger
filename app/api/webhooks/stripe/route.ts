@@ -13,15 +13,17 @@ if (!process.env.STRIPE_WEBHOOK_SECRET) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-01-27.acacia'
+  apiVersion: '2025-02-24.acacia'
 })
+
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 
 export async function POST(req: Request) {
   try {
     const body = await req.text()
-    const signature = (await headers()).get('stripe-signature')
+    const signature = headers().get('stripe-signature')
 
     console.log('Webhook reçu - Signature:', signature)
     console.log('Secret webhook:', process.env.STRIPE_WEBHOOK_SECRET)
@@ -42,7 +44,7 @@ export async function POST(req: Request) {
       event = stripe.webhooks.constructEvent(
         body,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!,
+        webhookSecret,
         tolerance
       )
       console.log('Événement construit avec succès:', event.type)
@@ -58,129 +60,154 @@ export async function POST(req: Request) {
       console.log('Traitement événement:', event.type, 'Data:', JSON.stringify(event.data.object))
       
       switch (event.type) {
-        case 'checkout.session.completed':
+        case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session
-          console.log('Session complétée - Mode:', session.mode, 'Metadata:', session.metadata)
+          if (!session?.metadata?.userId) break
 
-          if (session.mode === 'subscription') {
-            // Gestion abonnement Premium
-            await prisma.user.update({
-              where: { id: session.metadata?.userId },
-              data: { role: 'PREMIUM' }
-            })
+          // Récupérer les détails de l'abonnement
+          const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          
+          // Calculer la date de fin
+          const endDate = new Date(subscription.current_period_end * 1000)
 
-            // Notification pour l'upgrade premium
-            await prisma.notification.create({
-              data: {
-                userId: session.metadata?.userId!,
-                type: 'PREMIUM_UPGRADE',
-                title: 'Bienvenue dans Premium !',
-                message: 'Vous avez maintenant accès à tout le contenu premium. Profitez-en !',
-              }
-            })
-          } else if (session.mode === 'payment') {
-            // Gestion achat unique
-            const { userId, itemId, type } = session.metadata || {}
-            
-            if (type === 'formation') {
-              // Pour une formation, rendre toutes ses vidéos accessibles
-              const formation = await prisma.formation.findUnique({
-                where: { id: itemId },
-                include: { videos: true }
-              })
-
-              if (formation) {
-                await prisma.$transaction([
-                  // Créer l'achat de la formation
-                  prisma.purchase.create({
-                    data: {
-                      type,
-                      itemId,
-                      userId,
-                      price: formation.price || 0
-                    }
-                  }),
-                  // Créer les achats pour chaque vidéo de la formation
-                  ...formation.videos.map(videoFormation => 
-                    prisma.purchase.create({
-                      data: {
-                        type: 'video',
-                        itemId: videoFormation.videoId,
-                        userId,
-                        price: 0 // Gratuit car inclus dans la formation
-                      }
-                    })
-                  ),
-                  // Créer une notification pour l'achat
-                  prisma.notification.create({
-                    data: {
-                      userId,
-                      type: 'PURCHASE',
-                      title: 'Formation achetée',
-                      message: `Vous avez acheté la formation "${formation.title}". Bonne formation !`,
-                      contentId: itemId,
-                      contentType: 'formation'
-                    }
-                  })
-                ])
-              }
-            } else {
-              // Pour article ou vidéo unique
-              const [content, notification] = await prisma.$transaction([
-                // Créer l'achat
-                prisma.purchase.create({
-                  data: {
-                    type,
-                    itemId,
-                    userId,
-                    price: session.amount_total ? session.amount_total / 100 : 0
-                  }
-                }),
-                // Créer une notification
-                prisma.notification.create({
-                  data: {
-                    userId,
-                    type: 'PURCHASE',
-                    title: type === 'article' ? 'Article acheté' : 'Vidéo achetée',
-                    message: `Vous avez acheté ${type === 'article' ? 'l\'article' : 'la vidéo'}. Bon visionnage !`,
-                    contentId: itemId,
-                    contentType: type
-                  }
-                })
-              ])
-            }
+          // Déterminer le plan en fonction de l'intervalle
+          const interval = subscription.items.data[0].price.recurring?.interval
+          let plan = 'MONTHLY'
+          if (interval === 'year') {
+            plan = 'YEARLY'
+          } else if (interval === 'day') {
+            plan = 'DAILY'
           }
+
+          // Mettre à jour ou créer l'abonnement dans notre base de données
+          await prisma.subscription.upsert({
+            where: {
+              userId: session.metadata.userId
+            },
+            update: {
+              stripeSubscriptionId: subscription.id,
+              stripePriceId: subscription.items.data[0].price.id,
+              stripeCustomerId: subscription.customer as string,
+              endDate: endDate,
+              isActive: true,
+              plan: plan
+            },
+            create: {
+              userId: session.metadata.userId,
+              stripeSubscriptionId: subscription.id,
+              stripePriceId: subscription.items.data[0].price.id,
+              stripeCustomerId: subscription.customer as string,
+              endDate: endDate,
+              isActive: true,
+              plan: plan
+            }
+          })
+
+          // Mettre à jour le rôle de l'utilisateur
+          await prisma.user.update({
+            where: { id: session.metadata.userId },
+            data: { role: 'PREMIUM' }
+          })
+
+          // Notification pour l'upgrade premium
+          await prisma.notification.create({
+            data: {
+              userId: session.metadata?.userId!,
+              type: 'PREMIUM_UPGRADE',
+              title: 'Bienvenue dans Premium !',
+              message: 'Vous avez maintenant accès à tout le contenu premium. Profitez-en !',
+            }
+          })
 
           console.log('Session complétée:', session)
           console.log('Métadonnées:', session.metadata)
           break
+        }
 
-        case 'customer.subscription.deleted':
+        case 'customer.subscription.updated': {
           const subscription = event.data.object as Stripe.Subscription
           
-          // Retrouver l'utilisateur via la session de paiement
-          const checkoutSession = await stripe.checkout.sessions.retrieve(
-            subscription.metadata?.checkout_session_id as string
-          )
-          
-          if (checkoutSession.metadata?.userId) {
-            // Rétrograder l'utilisateur en NORMAL
+          // Mettre à jour l'abonnement dans notre base de données
+          await prisma.subscription.update({
+            where: {
+              stripeSubscriptionId: subscription.id
+            },
+            data: {
+              endDate: new Date(subscription.current_period_end * 1000),
+              isActive: subscription.status === 'active',
+              cancelledAt: subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : null
+            }
+          })
+
+          break
+        }
+
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object as Stripe.Subscription
+          console.log('Subscription deleted event received:', subscription.id)
+
+          try {
+            // D'abord vérifier si l'abonnement existe
+            const existingSubscription = await prisma.subscription.findUnique({
+              where: {
+                stripeSubscriptionId: subscription.id
+              },
+              include: {
+                user: true
+              }
+            })
+
+            if (!existingSubscription) {
+              console.error('Subscription not found in database:', subscription.id)
+              return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
+            }
+
+            // Mettre à jour l'abonnement
+            const dbSubscription = await prisma.subscription.update({
+              where: {
+                stripeSubscriptionId: subscription.id
+              },
+              data: {
+                isActive: false,
+                cancelledAt: new Date()
+              },
+              include: {
+                user: true
+              }
+            })
+
+            console.log('Subscription updated, updating user role...')
+
+            // Rétrograder l'utilisateur en compte normal
             await prisma.user.update({
-              where: { id: checkoutSession.metadata.userId },
+              where: { id: dbSubscription.user.id },
               data: { role: 'NORMAL' }
             })
+
+            console.log('User role updated, creating notification...')
 
             // Notification pour l'annulation de l'abonnement
             await prisma.notification.create({
               data: {
-                userId: checkoutSession.metadata.userId,
+                userId: dbSubscription.user.id,
                 type: 'PREMIUM_UPGRADE',
                 title: 'Abonnement Premium terminé',
                 message: 'Votre abonnement Premium est arrivé à son terme. Vous pouvez le renouveler à tout moment.',
               }
             })
+
+            console.log('Webhook processing completed successfully')
+            return NextResponse.json({ success: true })
+          } catch (error) {
+            console.error('Error processing subscription deletion:', error)
+            return NextResponse.json(
+              { error: `Error processing subscription deletion: ${error instanceof Error ? error.message : 'Unknown error'}` },
+              { status: 500 }
+            )
           }
+
           break
+        }
       }
 
       return NextResponse.json({ received: true })

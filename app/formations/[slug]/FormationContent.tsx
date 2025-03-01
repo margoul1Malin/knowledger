@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useToast } from '@/components/ui/use-toast'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import PurchaseModal from '@/app/components/PurchaseModal'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,6 +13,8 @@ import VideoPlayer from '@/app/components/VideoPlayer'
 import AuthorCard from '@/app/components/ui/AuthorCard'
 import StarRating from '@/app/components/formations/StarRating'
 import Comments from '@/app/components/Comments'
+import { cn } from '@/lib/utils'
+import { PlayIcon } from '@heroicons/react/24/outline'
 
 interface VideoFormation {
   order: number;
@@ -26,15 +29,20 @@ interface VideoFormation {
 
 export default function FormationContent({ formation: initialFormation }: { formation: any }) {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const [formation, setFormation] = useState(initialFormation)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
   const [showRatingPrompt, setShowRatingPrompt] = useState(false)
   const [userRating, setUserRating] = useState<number | null>(null)
-  const [averageRating, setAverageRating] = useState<number | null>(null)
-  const [totalRatings, setTotalRatings] = useState<number | null>(null)
+  const [totalRatings, setTotalRatings] = useState(0)
+  const [averageRating, setAverageRating] = useState(0)
   const { toast } = useToast()
+  const videoParam = searchParams.get('video')
+  const timeParam = searchParams.get('t')
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -83,6 +91,17 @@ export default function FormationContent({ formation: initialFormation }: { form
     }
   }, [formation.slug, formation.canAccess])
 
+  useEffect(() => {
+    if (videoParam) {
+      const videoIndex = formation.videos.findIndex(
+        (v: VideoFormation) => v.order === parseInt(videoParam)
+      )
+      if (videoIndex !== -1) {
+        setCurrentVideoIndex(videoIndex)
+      }
+    }
+  }, [videoParam, formation.videos])
+
   const handleRate = async (rating: number) => {
     try {
       const res = await fetch(`/api/formations/${formation.slug}`, {
@@ -123,6 +142,19 @@ export default function FormationContent({ formation: initialFormation }: { form
       return () => clearTimeout(timer)
     }
   }, [formation.canAccess, userRating])
+
+  const handleVideoSelect = (index: number) => {
+    const video = formation.videos[index]
+    setCurrentVideoIndex(index)
+    
+    // Mettre à jour l'URL avec le nouvel ordre de la vidéo
+    const params = new URLSearchParams(searchParams)
+    params.set('video', video.order.toString())
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  // Trier les vidéos par ordre
+  const sortedVideos = [...formation.videos].sort((a, b) => a.order - b.order)
 
   if (isLoading) {
     return <div>Chargement...</div>
@@ -224,7 +256,7 @@ export default function FormationContent({ formation: initialFormation }: { form
                 )}
               </div>
 
-              <div className="prose prose-lg dark:prose-invert max-w-none mb-8">
+              <div className="prose prose-lg dark:prose-invert max-w-none mb-8 break-words overflow-hidden">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
@@ -233,7 +265,7 @@ export default function FormationContent({ formation: initialFormation }: { form
                 </ReactMarkdown>
               </div>
 
-              <div className="prose prose-lg dark:prose-invert max-w-none">
+              <div className="prose prose-lg dark:prose-invert max-w-none break-words overflow-hidden">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
@@ -254,31 +286,37 @@ export default function FormationContent({ formation: initialFormation }: { form
             <div className="bg-card rounded-lg border border-border p-4 sticky top-24">
               <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
               <div className="space-y-2">
-                {formation.videos
-                  .sort((a: VideoFormation, b: VideoFormation) => a.order - b.order)
-                  .map((videoFormation: VideoFormation, index: number) => (
+                {sortedVideos.map((video: VideoFormation, index: number) => (
                   <button
-                    key={videoFormation.video.id}
-                    onClick={() => setCurrentVideoIndex(index)}
-                    className={`w-full flex items-start gap-3 p-2 rounded-lg hover:bg-muted text-left
-                      ${currentVideoIndex === index ? 'bg-muted' : ''}`}
+                    key={video.video.id}
+                    onClick={() => handleVideoSelect(index)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
+                      currentVideoIndex === index
+                        ? "bg-primary/10 text-primary"
+                        : "hover:bg-muted"
+                    )}
                   >
-                    <div className="relative w-24 aspect-video bg-muted rounded overflow-hidden">
+                    <div className="relative w-20 aspect-video rounded overflow-hidden bg-muted">
                       <Image
-                        src={videoFormation.video.coverImage}
-                        alt={videoFormation.video.title}
+                        src={video.video.coverImage}
+                        alt={video.video.title}
                         fill
                         className="object-cover"
                       />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <PlayIcon className="w-6 h-6 text-white" />
+                      </div>
                     </div>
-
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">
-                        {videoFormation.video.title}
+                        {video.video.title}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {videoFormation.video.duration ? `${videoFormation.video.duration} min` : 'Durée non disponible'}
-                      </p>
+                      {video.video.duration && (
+                        <p className="text-sm text-muted-foreground">
+                          {video.video.duration} min
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))}

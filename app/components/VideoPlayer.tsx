@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 
 type Props = {
   url: string
@@ -11,16 +12,61 @@ type Props = {
 
 export default function VideoPlayer({ url, videoId, onDurationChange }: Props) {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [lastSavedTime, setLastSavedTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const lastUpdateRef = useRef<number>(0)
   const MIN_UPDATE_INTERVAL = 5000 // 5 secondes minimum entre les mises à jour
+  const hasSetInitialTime = useRef(false)
+
+  useEffect(() => {
+    const fetchLastPosition = async () => {
+      if (!session?.user || hasSetInitialTime.current) return
+
+      try {
+        // D'abord, vérifier s'il y a un timestamp dans l'URL
+        const urlTimestamp = searchParams.get('t')
+        if (urlTimestamp) {
+          const time = parseFloat(urlTimestamp)
+          if (videoRef.current) {
+            videoRef.current.currentTime = time
+            hasSetInitialTime.current = true
+          }
+          return
+        }
+
+        // Sinon, récupérer depuis l'historique
+        const response = await fetch(`/api/history/last-position?itemId=${videoId}&type=video`)
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (data.timestamp && videoRef.current) {
+          videoRef.current.currentTime = data.timestamp
+          hasSetInitialTime.current = true
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la dernière position:', error)
+      }
+    }
+
+    fetchLastPosition()
+  }, [session, videoId, searchParams])
 
   const handleLoadedMetadata = (event: React.SyntheticEvent<HTMLVideoElement>) => {
     const videoDuration = Math.floor(event.currentTarget.duration / 60) // Convertir en minutes
     console.log('Durée de la vidéo chargée:', videoDuration)
     setDuration(videoDuration)
     onDurationChange?.(videoDuration)
+
+    // Réessayer de définir la position initiale si ce n'est pas encore fait
+    if (!hasSetInitialTime.current) {
+      const startTime = searchParams.get('t')
+      if (startTime) {
+        event.currentTarget.currentTime = parseFloat(startTime)
+        hasSetInitialTime.current = true
+      }
+    }
   }
 
   const handleTimeUpdate = async (event: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -99,6 +145,7 @@ export default function VideoPlayer({ url, videoId, onDurationChange }: Props) {
 
   return (
     <video
+      ref={videoRef}
       src={url}
       controls
       className="w-full h-full"
