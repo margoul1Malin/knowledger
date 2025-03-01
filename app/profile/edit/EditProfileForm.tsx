@@ -22,6 +22,11 @@ export default function EditProfileForm({ profile }: { profile: ProfileWithAddon
     socialLinks: profile.publicProfile?.socialLinks || {}
   })
 
+  // Ajout d'un état local pour gérer l'input d'expertise
+  const [expertiseInput, setExpertiseInput] = useState(
+    profile.publicProfile?.expertise?.join(', ') || ''
+  )
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -52,6 +57,22 @@ export default function EditProfileForm({ profile }: { profile: ProfileWithAddon
     }
   }
 
+  const handleExpertiseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setExpertiseInput(value)
+    
+    // Mise à jour du formData uniquement lorsque nécessaire
+    const expertiseArray = value
+      .split(',')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+    
+    setFormData(prev => ({
+      ...prev,
+      expertise: expertiseArray
+    }))
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
@@ -72,11 +93,8 @@ export default function EditProfileForm({ profile }: { profile: ProfileWithAddon
         </label>
         <input
           type="text"
-          value={formData.expertise.join(', ')}
-          onChange={(e) => setFormData({
-            ...formData,
-            expertise: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-          })}
+          value={expertiseInput}
+          onChange={handleExpertiseChange}
           className="w-full px-3 py-2 bg-background border border-input rounded-md"
           placeholder="JavaScript, React, Node.js..."
         />

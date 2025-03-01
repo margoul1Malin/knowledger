@@ -41,7 +41,18 @@ export default function FormationContent({ formation: initialFormation }: { form
       try {
         const res = await fetch(`/api/formations/${formation.slug}/check-access`)
         const data = await res.json()
-        setFormation(data)
+
+        // Récupérer les statistiques de l'auteur
+        const authorRes = await fetch(`/api/users/${formation.author.id}/stats`)
+        const authorStats = await authorRes.json()
+
+        setFormation({
+          ...data,
+          author: {
+            ...data.author,
+            _count: authorStats._count
+          }
+        })
       } catch (error) {
         console.error('Erreur:', error)
       } finally {
@@ -50,7 +61,7 @@ export default function FormationContent({ formation: initialFormation }: { form
     }
 
     checkAccess()
-  }, [formation.slug])
+  }, [formation.slug, formation.author.id])
 
   useEffect(() => {
     const fetchRatings = async () => {

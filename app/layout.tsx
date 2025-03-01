@@ -6,6 +6,7 @@ import SessionProvider from './providers/SessionProvider'
 import { ThemeProvider } from './providers/ThemeProvider'
 import { Toaster } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+import CookieConsent from './components/CookieConsent'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -32,6 +33,7 @@ export default function RootLayout({
               <Footer />
             </div>
             <Toaster position="bottom-right" />
+            <CookieConsent />
           </SessionProvider>
         </ThemeProvider>
       </body>

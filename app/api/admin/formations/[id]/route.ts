@@ -27,6 +27,35 @@ export async function DELETE(
       }
     })
 
+    // Supprimer l'historique
+    await prisma.history.deleteMany({
+      where: {
+        itemId: params.id,
+        type: 'formation'
+      }
+    })
+
+    // Supprimer les notes
+    await prisma.rating.deleteMany({
+      where: { formationId: params.id }
+    })
+
+    // Supprimer les commentaires
+    await prisma.comment.deleteMany({
+      where: {
+        itemId: params.id,
+        itemType: 'formation'
+      }
+    })
+
+    // Supprimer les notifications
+    await prisma.notification.deleteMany({
+      where: {
+        contentId: params.id,
+        contentType: 'formation'
+      }
+    })
+
     // Supprimer la formation
     await prisma.formation.delete({
       where: { id: params.id }

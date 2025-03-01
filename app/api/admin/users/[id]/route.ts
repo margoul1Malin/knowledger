@@ -38,12 +38,46 @@ export async function DELETE(
       return NextResponse.json({ message: 'Non autorisé' }, { status: 403 })
     }
 
+    // Supprimer les commentaires de l'utilisateur
+    await prisma.comment.deleteMany({
+      where: { userId: params.id }
+    })
+
+    // Supprimer les notes de l'utilisateur
+    await prisma.rating.deleteMany({
+      where: { userId: params.id }
+    })
+
+    // Supprimer les messages de l'utilisateur
+    await prisma.message.deleteMany({
+      where: { userId: params.id }
+    })
+
+    // Supprimer les notifications de l'utilisateur
+    await prisma.notification.deleteMany({
+      where: { userId: params.id }
+    })
+
+    // Supprimer l'historique de l'utilisateur
+    await prisma.history.deleteMany({
+      where: { userId: params.id }
+    })
+
+    // Supprimer les achats de l'utilisateur
+    await prisma.purchase.deleteMany({
+      where: { userId: params.id }
+    })
+
+    // Le profil public sera supprimé automatiquement grâce à onDelete: Cascade
+
+    // Supprimer l'utilisateur
     await prisma.user.delete({
       where: { id: params.id },
     })
 
     return NextResponse.json({ message: 'Utilisateur supprimé' })
   } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
     return NextResponse.json(
       { message: 'Erreur serveur' },
       { status: 500 }

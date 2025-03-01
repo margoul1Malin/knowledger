@@ -10,7 +10,8 @@ import {
   HomeIcon, 
   TagIcon, 
   LightBulbIcon,
-  InboxIcon 
+  InboxIcon,
+  UserPlusIcon 
 } from '@heroicons/react/24/outline'
 
 const menuItems = [
@@ -28,6 +29,11 @@ const menuItems = [
     name: 'Messages',
     href: '/admin/messages',
     icon: InboxIcon,
+  },
+  {
+    name: 'Demandes Formateur',
+    href: '/admin/formatorqueries',
+    icon: UserPlusIcon,
   },
   {
     name: 'Catégories',

@@ -21,7 +21,18 @@ export default function ArticleContent({ article: initialArticle }: { article: a
       try {
         const res = await fetch(`/api/articles/${article.slug}`)
         const data = await res.json()
-        setArticle(data)
+
+        // Récupérer les statistiques de l'auteur
+        const authorRes = await fetch(`/api/users/${article.author.id}/stats`)
+        const authorStats = await authorRes.json()
+
+        setArticle({
+          ...data,
+          author: {
+            ...data.author,
+            _count: authorStats._count
+          }
+        })
       } catch (error) {
         console.error('Erreur:', error)
       } finally {
@@ -30,7 +41,7 @@ export default function ArticleContent({ article: initialArticle }: { article: a
     }
 
     checkAccess()
-  }, [article.slug])
+  }, [article.slug, article.author.id])
 
   if (isLoading) {
     return <div>Chargement...</div>

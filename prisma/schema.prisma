@@ -15,11 +15,14 @@ enum UserRole {
 }
 
 enum NotificationType {
+  NEW_COMMENT
   NEW_ARTICLE
   NEW_VIDEO
   NEW_FORMATION
   PURCHASE
   PREMIUM_UPGRADE
+  FORMATOR_APPROVED
+  FORMATOR_REJECTED
 }
 
 model User {
@@ -266,4 +269,21 @@ model Rating {
 
   @@unique([userId, formationId])  // Un utilisateur ne peut noter qu'une fois
   @@index([formationId])
+}
+
+model FormatorQuery {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  skills      String[]
+  wantArticles Boolean    @default(false)
+  wantVideos   Boolean    @default(false)
+  wantFormations Boolean  @default(false)
+  cvUrl       String?
+  message     String
+  status      String      @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 } 

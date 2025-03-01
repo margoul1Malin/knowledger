@@ -27,6 +27,30 @@ export async function DELETE(
       }
     })
 
+    // Supprimer l'historique
+    await prisma.history.deleteMany({
+      where: {
+        itemId: params.id,
+        type: 'video'
+      }
+    })
+
+    // Supprimer les commentaires
+    await prisma.comment.deleteMany({
+      where: {
+        itemId: params.id,
+        itemType: 'video'
+      }
+    })
+
+    // Supprimer les notifications
+    await prisma.notification.deleteMany({
+      where: {
+        contentId: params.id,
+        contentType: 'video'
+      }
+    })
+
     // Supprimer la vidéo
     await prisma.video.delete({
       where: { id: params.id }

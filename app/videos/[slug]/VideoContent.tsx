@@ -21,7 +21,18 @@ export default function VideoContent({ video: initialVideo }: { video: any }) {
       try {
         const res = await fetch(`/api/videos/${video.slug}/check-access`)
         const data = await res.json()
-        setVideo(data)
+
+        // Récupérer les statistiques de l'auteur
+        const authorRes = await fetch(`/api/users/${video.author.id}/stats`)
+        const authorStats = await authorRes.json()
+
+        setVideo({
+          ...data,
+          author: {
+            ...data.author,
+            _count: authorStats._count
+          }
+        })
       } catch (error) {
         console.error('Erreur:', error)
       } finally {
@@ -30,7 +41,7 @@ export default function VideoContent({ video: initialVideo }: { video: any }) {
     }
 
     checkAccess()
-  }, [video.slug])
+  }, [video.slug, video.author.id])
 
   if (isLoading) {
     return <div>Chargement...</div>
