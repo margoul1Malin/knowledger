@@ -11,8 +11,13 @@ import {
   ChartBarIcon,
   EyeIcon,
   UserGroupIcon,
-  PlayIcon
+  PlayIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline'
+import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
+import { useToast } from "@/components/ui/use-toast";
 
 interface ContentStats {
   articles: number
@@ -43,6 +48,8 @@ export default function CreatorContent() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchContent()
@@ -91,6 +98,31 @@ export default function CreatorContent() {
     const formationStudents = new Set(data.formations.flatMap(formation => formation.students || []))
     return new Set([...videoStudents, ...formationStudents]).size
   }
+
+  const handleDelete = async (type: string, id: string) => {
+    try {
+      const response = await fetch(`/api/users/content/${type}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Une erreur est survenue");
+      }
+
+      toast({
+        title: "Contenu supprimé",
+        description: "Le contenu a été supprimé avec succès.",
+      });
+
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la suppression.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -214,13 +246,38 @@ export default function CreatorContent() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {article.isPremium && (
-                    <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                      Premium
-                    </span>
-                  )}
-                  <span>{article.views || 0} vues</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {article.isPremium && (
+                      <span className="px-2 py-1 bg-primary/10 text-primary rounded">
+                        Premium
+                      </span>
+                    )}
+                    <span>{article.views || 0} vues</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        router.push(`/articles/${article.slug}/edit`)
+                      }}
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDelete('article', article.id)
+                      }}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -253,23 +310,21 @@ export default function CreatorContent() {
         {content.videos.length > 0 ? (
           <div className="grid gap-4">
             {content.videos.map((video) => (
-              <Link
+              <div
                 key={video.id}
-                href={`/videos/${video.slug}`}
                 className="flex justify-between items-center p-4 bg-muted/50 hover:bg-muted rounded-lg group transition-colors"
               >
-                <div className="flex items-center gap-4">
-                  <div className="relative w-32 h-20 rounded-lg overflow-hidden">
-                    <Image
-                      src={video.coverImage}
-                      alt={video.title}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/50 transition-colors">
-                      <PlayIcon className="w-8 h-8 text-white" />
-                    </div>
-                  </div>
+                <Link
+                  href={`/videos/${video.slug}`}
+                  className="flex items-center gap-4 flex-1"
+                >
+                  <Image
+                    src={video.coverImage}
+                    alt={video.title}
+                    width={120}
+                    height={80}
+                    className="rounded-lg object-cover"
+                  />
                   <div>
                     <h4 className="font-medium group-hover:text-primary transition-colors">
                       {video.title}
@@ -277,17 +332,28 @@ export default function CreatorContent() {
                     <p className="text-sm text-muted-foreground">
                       {new Date(video.createdAt).toLocaleDateString('fr-FR')}
                     </p>
+                    {video.category && (
+                      <span className="text-xs text-muted-foreground">
+                        {video.category.name}
+                      </span>
+                    )}
                   </div>
+                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/videos/${video.slug}/edit`}
+                    className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <PencilIcon className="h-5 w-5" />
+                  </Link>
+                  <button
+                    onClick={() => handleDelete('video', video.id)}
+                    className="p-2 text-destructive hover:text-destructive/80"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {video.isPremium && (
-                    <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                      Premium
-                    </span>
-                  )}
-                  <span>{video.views || 0} vues</span>
-                </div>
-              </Link>
+              </div>
             ))}
           </div>
         ) : (
@@ -346,13 +412,38 @@ export default function CreatorContent() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {formation.isPremium && (
-                    <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                      Premium
-                    </span>
-                  )}
-                  <span>{formation.views || 0} vues</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {formation.isPremium && (
+                      <span className="px-2 py-1 bg-primary/10 text-primary rounded">
+                        Premium
+                      </span>
+                    )}
+                    <span>{formation.views || 0} vues</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        router.push(`/formations/${formation.slug}/edit`)
+                      }}
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDelete('formation', formation.id)
+                      }}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </Link>
             ))}

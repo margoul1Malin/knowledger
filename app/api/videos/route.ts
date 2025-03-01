@@ -1,64 +1,70 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import slugify from '@/lib/slugify'
+import slugify from 'slugify'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '15')
+    const formationId = searchParams.get('formationId')
     const skip = (page - 1) * limit
 
-    const session = await getServerSession(authOptions)
-    const userId = session?.user?.id
-
-    const [total, items] = await Promise.all([
-      prisma.video.count({
-        where: {
-          formations: {
-            none: {}
-          }
+    const where = formationId ? {
+      formations: {
+        some: {
+          formationId
         }
-      }),
-      prisma.video.findMany({
-        where: {
-          formations: {
-            none: {}
-          }
-        },
-        skip,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              image: true
-            }
+      }
+    } : {
+      formations: {
+        none: {}
+      }
+    }
+
+    // Récupérer le nombre total de vidéos
+    const total = await prisma.video.count({ where })
+
+    // Récupérer les vidéos avec pagination
+    const videos = await prisma.video.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        videoUrl: true,
+        coverImage: true,
+        duration: true,
+        isPremium: true,
+        price: true,
+        slug: true,
+        formations: formationId ? {
+          where: {
+            formationId
           },
-          purchases: userId ? {
-            where: {
-              userId: userId
-            }
-          } : false
-        },
-        orderBy: {
-          createdAt: 'desc'
+          select: {
+            order: true,
+            coverImage: true
+          }
+        } : undefined,
+        author: {
+          select: {
+            name: true,
+            image: true
+          }
         }
-      })
-    ])
-
-    // Ajouter hasPurchased à chaque vidéo
-    const videosWithPurchaseInfo = items.map(video => ({
-      ...video,
-      hasPurchased: video.purchases && video.purchases.length > 0,
-      purchases: undefined // Supprimer les données de purchase pour alléger la réponse
-    }))
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit
+    })
 
     return NextResponse.json({
-      items: videosWithPurchaseInfo,
+      items: videos,
       pagination: {
         total,
         pages: Math.ceil(total / limit),
@@ -68,26 +74,27 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('Erreur:', error)
-    return NextResponse.json(
-      { error: 'Erreur serveur' },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      items: [],
+      pagination: {
+        total: 0,
+        pages: 0,
+        page: 1,
+        limit: 15
+      }
+    })
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    if (!['ADMIN', 'FORMATOR'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
-
-    const data = await req.json()
+    const data = await request.json()
 
     // Créer la vidéo
     const video = await prisma.video.create({
@@ -95,24 +102,20 @@ export async function POST(req: Request) {
         title: data.title,
         description: data.description,
         videoUrl: data.videoUrl,
-        coverImage: data.coverImage,
-        isPremium: data.isPremium,
-        price: data.price,
-        slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        authorId: session.user.id,
-        categoryId: data.categoryId
-      }
-    })
-
-    // Créer une notification pour l'auteur
-    await prisma.notification.create({
-      data: {
-        userId: session.user.id,
-        type: 'NEW_VIDEO',
-        title: 'Nouvelle vidéo créée',
-        message: `Votre vidéo "${data.title}" a été publiée avec succès.`,
-        contentId: video.id,
-        contentType: 'video'
+        coverImage: data.coverImage || data.videoUrl.replace(/\.[^/.]+$/, '.jpg'),
+        isPremium: false,
+        price: null,
+        slug: slugify(data.title, { lower: true }),
+        author: {
+          connect: {
+            id: session.user.id
+          }
+        },
+        category: {
+          connect: {
+            id: "67c2407acbf64d7a1b89aa91" // ID de la catégorie par défaut
+          }
+        }
       }
     })
 
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Erreur création vidéo:', error)
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: 'Erreur lors de la création' },
       { status: 500 }
     )
   }

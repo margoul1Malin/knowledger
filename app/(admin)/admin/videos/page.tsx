@@ -1,10 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Video } from '@prisma/client'
-import { XMarkIcon, PencilIcon, EyeIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
+import { Button } from '@/components/ui/button'
+import { TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Video } from '@prisma/client'
+import { XMarkIcon, PencilIcon, EyeIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
 
 type VideoWithFormations = Video & {
   VideoFormation: {
@@ -18,6 +22,8 @@ type VideoWithFormations = Video & {
 export default function AdminVideosPage() {
   const [videos, setVideos] = useState<VideoWithFormations[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
+  const router = useRouter()
 
   useEffect(() => {
     fetchVideos()
@@ -26,12 +32,16 @@ export default function AdminVideosPage() {
   const fetchVideos = async () => {
     try {
       const res = await fetch('/api/videos')
-      if (!res.ok) throw new Error('Erreur lors de la récupération des vidéos')
+      if (!res.ok) throw new Error('Erreur lors du chargement des vidéos')
       const data = await res.json()
-      setVideos(data.items)
+      setVideos(data.items || [])
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Une erreur est survenue lors du chargement des vidéos')
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger les vidéos',
+        variant: 'destructive'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -42,18 +52,24 @@ export default function AdminVideosPage() {
 
     try {
       const res = await fetch(`/api/admin/videos/${id}`, {
-        method: 'DELETE',
+        method: 'DELETE'
       })
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Erreur lors de la suppression')
-      }
+      if (!res.ok) throw new Error('Erreur lors de la suppression')
 
-      await fetchVideos()
+      toast({
+        title: 'Succès',
+        description: 'La vidéo a été supprimée'
+      })
+
+      fetchVideos()
     } catch (error) {
       console.error('Erreur:', error)
-      alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer la vidéo',
+        variant: 'destructive'
+      })
     }
   }
 
@@ -96,84 +112,47 @@ export default function AdminVideosPage() {
           Aucune vidéo n'a été créée pour le moment.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {videos.map((video) => (
-            <div 
-              key={video.id} 
-              className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-shadow"
+            <div
+              key={video.id}
+              className="bg-card border border-border rounded-lg p-4 flex items-center justify-between"
             >
-              <div className="relative aspect-video">
-                <Image
-                  src={video.coverImage}
-                  alt={video.title}
-                  fill
-                  className="object-cover"
-                />
+              <div>
+                <h3 className="font-medium">{video.title}</h3>
+                <p className="text-sm text-muted-foreground">{video.description}</p>
                 {video.VideoFormation && video.VideoFormation.length > 0 && (
-                  <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-                    <AcademicCapIcon className="h-4 w-4" />
-                    Formation
+                  <div className="mt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Utilisée dans les formations :
+                      {video.VideoFormation.map((vf, index) => (
+                        <Link
+                          key={index}
+                          href={`/formations/${vf.formation.slug}`}
+                          className="text-primary hover:underline ml-1"
+                        >
+                          {vf.formation.title}
+                          {index < video.VideoFormation.length - 1 ? ',' : ''}
+                        </Link>
+                      ))}
+                    </p>
                   </div>
                 )}
               </div>
-
-              <div className="p-4">
-                <div>
-                  <h3 className="font-semibold text-lg line-clamp-1">{video.title}</h3>
-                  <p className="text-muted-foreground text-sm line-clamp-2 mt-1">
-                    {video.description}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-sm mt-2">
-                  {video.isPremium && (
-                    <span className="px-2 py-1 bg-primary/10 text-primary rounded-full font-medium">
-                      Premium
-                    </span>
-                  )}
-                  {video.price && (
-                    <span className="px-2 py-1 bg-muted rounded-full">
-                      {video.price}€
-                    </span>
-                  )}
-                  {video.VideoFormation && video.VideoFormation.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {video.VideoFormation.map((vf) => (
-                        <Link
-                          key={vf.formation.slug}
-                          href={`/formations/${vf.formation.slug}`}
-                          className="px-2 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs hover:bg-secondary/20 transition-colors"
-                        >
-                          {vf.formation.title}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 mt-4">
-                  <Link
-                    href={`/videos/${video.slug}`}
-                    className="p-2 text-muted-foreground hover:text-primary transition-colors"
-                    title="Voir"
-                  >
-                    <EyeIcon className="h-5 w-5" />
-                  </Link>
-                  <Link
-                    href={`/admin/videos/${video.id}/edit`}
-                    className="p-2 text-muted-foreground hover:text-primary transition-colors"
-                    title="Modifier"
-                  >
-                    <PencilIcon className="h-5 w-5" />
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(video.id)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Supprimer"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
-                </div>
+              <div className="flex items-center gap-2">
+                <Link href={`/videos/${video.slug}/edit`}>
+                  <Button variant="ghost" size="sm">
+                    <PencilIcon className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(video.id)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ))}

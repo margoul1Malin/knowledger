@@ -10,24 +10,59 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+    if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // Supprimer les relations VideoFormation
-    await prisma.videoFormation.deleteMany({
-      where: { formationId: params.id }
+    // Récupérer la formation avec ses vidéos
+    const formation = await prisma.formation.findUnique({
+      where: { id: params.id },
+      include: {
+        videos: {
+          include: {
+            video: true
+          }
+        }
+      }
     })
 
-    // Supprimer les achats
+    if (!formation) {
+      return NextResponse.json(
+        { error: 'Formation non trouvée' },
+        { status: 404 }
+      )
+    }
+
+    // Récupérer les IDs des vidéos à supprimer
+    const videoIds = formation.videos.map(v => v.videoId)
+
+    // Supprimer d'abord toutes les relations VideoFormation pour ces vidéos
+    await prisma.videoFormation.deleteMany({
+      where: {
+        videoId: {
+          in: videoIds
+        }
+      }
+    })
+
+    // Supprimer les vidéos
+    await prisma.video.deleteMany({
+      where: {
+        id: {
+          in: videoIds
+        }
+      }
+    })
+
+    // Supprimer les achats liés à la formation
     await prisma.purchase.deleteMany({
-      where: { 
+      where: {
         itemId: params.id,
         type: 'formation'
       }
     })
 
-    // Supprimer l'historique
+    // Supprimer l'historique lié à la formation
     await prisma.history.deleteMany({
       where: {
         itemId: params.id,
@@ -35,12 +70,7 @@ export async function DELETE(
       }
     })
 
-    // Supprimer les notes
-    await prisma.rating.deleteMany({
-      where: { formationId: params.id }
-    })
-
-    // Supprimer les commentaires
+    // Supprimer les commentaires liés à la formation
     await prisma.comment.deleteMany({
       where: {
         itemId: params.id,
@@ -48,7 +78,7 @@ export async function DELETE(
       }
     })
 
-    // Supprimer les notifications
+    // Supprimer les notifications liées à la formation
     await prisma.notification.deleteMany({
       where: {
         contentId: params.id,
@@ -56,7 +86,7 @@ export async function DELETE(
       }
     })
 
-    // Supprimer la formation
+    // Enfin, supprimer la formation
     await prisma.formation.delete({
       where: { id: params.id }
     })
