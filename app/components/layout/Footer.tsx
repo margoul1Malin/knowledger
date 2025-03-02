@@ -163,11 +163,6 @@ export default function Footer() {
                   Contribuer
                 </Link>
               </li>
-              <li>
-                <Link href="/faq" className="text-sm text-muted-foreground hover:text-foreground">
-                  FAQ
-                </Link>
-              </li>
             </ul>
           </div>
         </nav>

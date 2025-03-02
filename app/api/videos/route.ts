@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import slugify from 'slugify'
 import { slugify as customSlugify } from '@/lib/utils'
 
 export async function GET(request: Request) {
