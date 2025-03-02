@@ -78,62 +78,123 @@ export default function Footer() {
   }
 
   return (
-    <footer className="bg-card mt-24">
-      <div className="mx-auto max-w-7xl overflow-hidden px-6 py-20 sm:py-24 lg:px-8">
+    <footer className="bg-card">
+      <div className="mx-auto max-w-7xl overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
         {/* Navigation principale */}
-        <nav className="mb-12 columns-2 sm:flex sm:justify-center sm:space-x-12" aria-label="Footer">
-          {navigationItems.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <div key={item.name} className="pb-6">
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-2 text-sm leading-6 ${
-                    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
+        <nav className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label="Footer">
+          {/* Section À propos */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">À propos</h3>
+            <ul className="space-y-3">
+              <li>
+                <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
+                  Qui ?
                 </Link>
-              </div>
-            )
-          })}
+              </li>
+              <li>
+                <Link href="https://real-margoul1-store.vercel.app/" target="_blank" className="text-sm text-muted-foreground hover:text-foreground">
+                  Margoul1 Store
+                </Link>
+              </li>
+              <li>
+                <Link href="/formatorquery" className="text-sm text-muted-foreground hover:text-foreground">
+                  Devenir Formateur
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Section Navigation */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Navigation</h3>
+            <ul className="space-y-3">
+              {navigationItems.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-2 text-sm ${
+                        isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+
+          {/* Section Légal */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Légal</h3>
+            <ul className="space-y-3">
+              <li>
+                <Link href="/legal/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+                  Politique de confidentialité
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/terms" className="text-sm text-muted-foreground hover:text-foreground">
+                  Conditions d'utilisation
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/cookies" className="text-sm text-muted-foreground hover:text-foreground">
+                  Cookies
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Section Contact */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Contact</h3>
+            <ul className="space-y-3">
+              <li>
+                <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+                  Nous contacter
+                </Link>
+              </li>
+              <li>
+                <Link href="/contributions" className="text-sm text-muted-foreground hover:text-foreground">
+                  Contribuer
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="text-sm text-muted-foreground hover:text-foreground">
+                  FAQ
+                </Link>
+              </li>
+            </ul>
+          </div>
         </nav>
 
         {/* Réseaux sociaux */}
-        <div className="mt-10 flex justify-center space-x-10">
-          {socialLinks.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="text-muted-foreground hover:text-foreground"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="sr-only">{item.name}</span>
-              <item.icon className="h-6 w-6" aria-hidden="true" />
-            </Link>
-          ))}
-        </div>
+        <div className="mt-8 border-t border-border pt-8">
+          <div className="flex flex-col items-center space-y-4 sm:flex-row sm:justify-between sm:space-y-0">
+            {/* Copyright */}
+            <p className="text-sm text-muted-foreground">
+              &copy; {new Date().getFullYear()} KnowLedger. Tous droits réservés.
+            </p>
 
-        {/* Copyright et mentions légales */}
-        <div className="mt-10 border-t border-border pt-8">
-          <p className="text-center text-xs leading-5 text-muted-foreground">
-            &copy; {new Date().getFullYear()} KnowLedger. Tous droits réservés.
-          </p>
-          <div className="mt-4 flex justify-center space-x-4 text-xs text-muted-foreground">
-            <Link href="/legal/privacy" className="hover:text-foreground">
-              Politique de confidentialité
-            </Link>
-            <Link href="/legal/terms" className="hover:text-foreground">
-              Conditions d&apos;utilisation
-            </Link>
-            <Link href="/legal/cookies" className="hover:text-foreground">
-              Cookies
-            </Link>
-            <Link href="/contributions" className="hover:text-foreground">
-              Contributions
-            </Link>
+            {/* Icônes sociales */}
+            <div className="flex space-x-6">
+              {socialLinks.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="text-muted-foreground hover:text-foreground"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span className="sr-only">{item.name}</span>
+                  <item.icon className="h-5 w-5" aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>

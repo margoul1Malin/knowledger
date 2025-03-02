@@ -144,14 +144,14 @@ export default async function ContributionsPage() {
             <p className="text-muted-foreground">
               3. Interagissez avec la communauté et recevez des retours
             </p>
-            <div className="mt-8">
-              <Link href="/formatorquery">
-                <Button size="lg" className="mr-4">
+            <div className="mt-8 flex flex-col justify-center items-center sm:flex-row gap-4">
+              <Link href="/formatorquery" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full">
                   Créer du Contenu
                 </Button>
               </Link>
-              <Link href="https://buymeacoffee.com/margoul1n" target="_blank">
-                <Button size="lg" variant="outline" className="bg-[#FFDD00] text-black border-[#FFDD00] hover:bg-[#FFDD00]/90 hover:border-[#FFDD00]/90">
+              <Link href="https://buymeacoffee.com/margoul1n" target="_blank" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full bg-[#FFDD00] text-black border-[#FFDD00] hover:bg-[#FFDD00]/90 hover:border-[#FFDD00]/90">
                   <Coffee className="mr-2 h-4 w-4" />
                   Buy me a coffee
                 </Button>

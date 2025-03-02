@@ -6,13 +6,14 @@ import ArticleForm from '@/app/components/articles/ArticleForm'
 
 export default async function EditArticlePage({ params }: { params: { slug: string } }) {
   const session = await getServerSession(authOptions)
+  const { slug } = await params
 
   if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
     redirect('/')
   }
 
   const article = await prisma.article.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     include: {
       author: true,
       category: true

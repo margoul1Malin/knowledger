@@ -188,102 +188,64 @@ export default function FormationContent({ formation: initialFormation }: { form
   const currentVideo = formation.videos[currentVideoIndex]?.video
 
   return (
-    <div className="min-h-screen bg-background pt-24">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sidebar avec AuthorCard */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-24 space-y-6">
-              <AuthorCard author={formation.author} />
-              
-              {/* Composant de notation */}
-              {formation.canAccess && (
-                <div className="bg-card rounded-lg border border-border p-4">
-                  <h3 className="font-semibold mb-4">Noter cette formation</h3>
-                  <div className="space-y-2">
-                    <StarRating
-                      rating={userRating || 0}
-                      interactive={true}
-                      onRate={handleRate}
-                      size="lg"
-                    />
-                    {averageRating !== null && totalRatings !== null && (
-                      <p className="text-sm text-muted-foreground">
-                        Note moyenne : {averageRating.toFixed(1)}/5
-                        <br />
-                        {totalRatings} avis
-                      </p>
-                    )}
-                  </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Sidebar avec AuthorCard */}
+        <div className="order-last lg:order-first lg:col-span-3">
+          <div className="sticky top-24 space-y-6">
+            <AuthorCard author={formation.author} />
+            
+            {/* Composant de notation */}
+            {formation.canAccess && (
+              <div className="bg-card rounded-lg border border-border p-4">
+                <h3 className="font-semibold mb-4">Noter cette formation</h3>
+                <div className="space-y-2">
+                  <StarRating
+                    rating={userRating || 0}
+                    interactive={true}
+                    onRate={handleRate}
+                    size="lg"
+                  />
+                  {averageRating !== null && totalRatings !== null && (
+                    <p className="text-sm text-muted-foreground">
+                      Note moyenne : {averageRating.toFixed(1)}/5
+                      <br />
+                      {totalRatings} avis
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Contenu principal */}
-          <div className="lg:col-span-6">
-            <div className="aspect-video bg-card rounded-lg overflow-hidden mb-8">
-              {currentVideo && (
-                <VideoPlayer
-                  url={currentVideo.videoUrl}
-                  videoId={currentVideo.id}
-                  onDurationChange={(duration) => {
-                    const updatedVideos = formation.videos.map((vf: VideoFormation) => {
-                      if (vf.video.id === currentVideo.id) {
-                        return {
-                          ...vf,
-                          video: { ...vf.video, duration }
-                        }
+        {/* Contenu principal */}
+        <div className="lg:col-span-6">
+          {/* Lecteur vidéo */}
+          <div className="aspect-video bg-card rounded-lg overflow-hidden mb-8">
+            {currentVideo && (
+              <VideoPlayer
+                url={currentVideo.videoUrl}
+                videoId={currentVideo.id}
+                onDurationChange={(duration) => {
+                  const updatedVideos = formation.videos.map((vf: VideoFormation) => {
+                    if (vf.video.id === currentVideo.id) {
+                      return {
+                        ...vf,
+                        video: { ...vf.video, duration }
                       }
-                      return vf
-                    })
-                    setFormation((prev: typeof initialFormation) => ({ ...prev, videos: updatedVideos }))
-                  }}
-                />
-              )}
-            </div>
-
-            <div className="space-y-6">
-              <h1 className="text-3xl font-bold">{formation.title}</h1>
-              
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <time>{new Date(formation.createdAt).toLocaleDateString()}</time>
-                {formation.isPremium && (
-                  <>
-                    <span>•</span>
-                    <span className="text-primary">{formation.price}€</span>
-                  </>
-                )}
-              </div>
-
-              <div className="prose prose-lg dark:prose-invert max-w-none mb-8 break-words overflow-hidden">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
-                >
-                  {formation.description}
-                </ReactMarkdown>
-              </div>
-
-              <div className="prose prose-lg dark:prose-invert max-w-none break-words overflow-hidden">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
-                >
-                  {formation.content}
-                </ReactMarkdown>
-              </div>
-
-              {/* Section commentaires */}
-              <div className="mt-12">
-                <Comments itemId={formation.id} itemType="formation" />
-              </div>
-            </div>
+                    }
+                    return vf
+                  })
+                  setFormation((prev: typeof initialFormation) => ({ ...prev, videos: updatedVideos }))
+                }}
+              />
+            )}
           </div>
 
-          {/* Sidebar avec la liste des vidéos */}
-          <div className="lg:col-span-3">
-            <div className="bg-card rounded-lg border border-border p-4 sticky top-24">
+          {/* Liste des vidéos sur mobile/tablette */}
+          <div className="lg:hidden mb-8">
+            <div className="bg-card rounded-lg border border-border p-4">
               <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
               <div className="space-y-2">
                 {sortedVideos.map((video: VideoFormation, index: number) => (
@@ -324,30 +286,111 @@ export default function FormationContent({ formation: initialFormation }: { form
             </div>
           </div>
 
-          {/* Popup d'incitation à noter */}
-          {showRatingPrompt && !userRating && (
-            <div className="fixed bottom-4 right-4 bg-card border border-border rounded-lg p-4 shadow-lg max-w-sm animate-in slide-in-from-bottom">
-              <h4 className="font-semibold mb-2">Que pensez-vous de cette formation ?</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Votre avis nous aide à améliorer nos contenus
-              </p>
-              <div className="space-y-4">
-                <StarRating
-                  interactive={true}
-                  onRate={handleRate}
-                  size="lg"
-                />
-                <button
-                  onClick={() => setShowRatingPrompt(false)}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Plus tard
-                </button>
-              </div>
+          {/* Contenu de la formation */}
+          <div>
+            <h1 className="text-3xl font-bold mb-4">{formation.title}</h1>
+            
+            <div className="flex items-center gap-2 text-muted-foreground mb-6">
+              <time>{new Date(formation.createdAt).toLocaleDateString()}</time>
+              {formation.isPremium && (
+                <>
+                  <span>•</span>
+                  <span className="text-primary">{formation.price}€</span>
+                </>
+              )}
             </div>
-          )}
+
+            <div className="prose prose-lg dark:prose-invert max-w-none mb-8 break-words overflow-hidden">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+              >
+                {formation.description}
+              </ReactMarkdown>
+            </div>
+
+            <div className="prose prose-lg dark:prose-invert max-w-none break-words overflow-hidden mb-12">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+              >
+                {formation.content}
+              </ReactMarkdown>
+            </div>
+
+            {/* Section commentaires */}
+            <div className="mt-12">
+              <Comments itemId={formation.id} itemType="formation" />
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar avec la liste des vidéos sur desktop */}
+        <div className="hidden lg:block lg:col-span-3">
+          <div className="bg-card rounded-lg border border-border p-4 sticky top-24">
+            <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
+            <div className="space-y-2">
+              {sortedVideos.map((video: VideoFormation, index: number) => (
+                <button
+                  key={video.video.id}
+                  onClick={() => handleVideoSelect(index)}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
+                    currentVideoIndex === index
+                      ? "bg-primary/10 text-primary"
+                      : "hover:bg-muted"
+                  )}
+                >
+                  <div className="relative w-20 aspect-video rounded overflow-hidden bg-muted">
+                    <Image
+                      src={video.video.coverImage}
+                      alt={video.video.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <PlayIcon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">
+                      {video.video.title}
+                    </p>
+                    {video.video.duration && (
+                      <p className="text-sm text-muted-foreground">
+                        {video.video.duration} min
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Popup d'incitation à noter */}
+      {showRatingPrompt && !userRating && (
+        <div className="fixed bottom-4 right-4 bg-card border border-border rounded-lg p-4 shadow-lg max-w-sm animate-in slide-in-from-bottom">
+          <h4 className="font-semibold mb-2">Que pensez-vous de cette formation ?</h4>
+          <p className="text-sm text-muted-foreground mb-4">
+            Votre avis nous aide à améliorer nos contenus
+          </p>
+          <div className="space-y-4">
+            <StarRating
+              interactive={true}
+              onRate={handleRate}
+              size="lg"
+            />
+            <button
+              onClick={() => setShowRatingPrompt(false)}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Plus tard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

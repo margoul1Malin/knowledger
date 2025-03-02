@@ -7,229 +7,311 @@ import { signOut } from 'next-auth/react'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useTheme } from '@/app/providers/ThemeProvider'
 import { 
-  HomeIcon, 
-  NewspaperIcon, 
-  VideoCameraIcon, 
-  AcademicCapIcon,
-  UserCircleIcon,
-  ChevronDownIcon,
-  SunIcon,
-  MoonIcon,
-  Cog6ToothIcon,
-  PencilSquareIcon,
-  SparklesIcon,
-  MagnifyingGlassIcon,
-  UserGroupIcon
-} from '@heroicons/react/24/outline'
-import { motion, AnimatePresence } from 'framer-motion'
+  Home, 
+  Newspaper, 
+  Camera, 
+  GraduationCap,
+  UserCircle,
+  ChevronDown,
+  Sun,
+  Moon,
+  Settings,
+  PenSquare,
+  Sparkles,
+  Search,
+  Menu,
+  X,
+  Users
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const SearchDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const [query, setQuery] = useState('')
   const router = useRouter()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query)}`)
-      onClose()
-      setQuery('')
-    }
+    // TODO: Implémenter la recherche
+    onClose()
   }
 
+  if (!isOpen) return null
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-            onClick={onClose}
-          />
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-2xl z-50 p-4"
-          >
-            <form onSubmit={handleSearch} className="relative">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher des articles, vidéos, formations..."
-                className="w-full px-4 py-3 pl-12 bg-card border border-border rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                autoFocus
-              />
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            </form>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
+      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg">
+        <div className="flex flex-col space-y-4">
+          <form onSubmit={handleSearch} className="flex space-x-2">
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <Button type="submit">Rechercher</Button>
+          </form>
+          <Button variant="outline" onClick={onClose}>
+            Fermer
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 
 const Navbar = () => {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const pathname = usePathname()
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { user } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const isAdmin = user?.role === 'ADMIN'
-  const canCreateContent = user?.role === 'ADMIN' || user?.role === 'FORMATOR'
+  const pathname = usePathname()
+  const [isScrolled, setIsScrolled] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-
-  const navItems = [
-    { name: 'Accueil', href: '/', icon: HomeIcon },
-    { name: 'Articles', href: '/articles', icon: NewspaperIcon },
-    { name: 'Vidéos', href: '/videos', icon: VideoCameraIcon },
-    { name: 'Formations', href: '/formations', icon: AcademicCapIcon },
-    { name: 'Formateurs', href: '/publicprofiles', icon: UserGroupIcon },
-    ...(user?.role === 'NORMAL' ? [{ name: 'Premium', href: '/premium', icon: SparklesIcon }] : []),
-    ...(canCreateContent ? [{ name: 'Create', href: '/create-content', icon: PencilSquareIcon }] : []),
-    ...(isAdmin ? [{ name: 'Administration', href: '/admin', icon: Cog6ToothIcon }] : []),
-  ]
-
-  const showPremiumLink = isAuthenticated && user?.role === 'NORMAL'
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 0)
     }
+
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/' })
+  }
+
+  // Liens de navigation de base
+  const baseNavLinks = [
+    { href: '/', icon: Home, label: 'Accueil' },
+    { href: '/articles', icon: Newspaper, label: 'Articles' },
+    { href: '/videos', icon: Camera, label: 'Vidéos' },
+    { href: '/formations', icon: GraduationCap, label: 'Formations' },
+    { href: '/publicprofiles', icon: Users, label: 'Formateurs' },
+  ]
+
+  // Ajouter des liens en fonction du rôle
+  const navLinks = [...baseNavLinks]
+
+  if (user?.role === 'NORMAL') {
+    navLinks.push({ href: '/premium', icon: Sparkles, label: 'Premium' })
+  }
+
+  if (user?.role === 'ADMIN' || user?.role === 'FORMATOR') {
+    navLinks.push({ href: '/create-content', icon: PenSquare, label: 'Créer' })
+  }
+
+  if (user?.role === 'ADMIN') {
+    navLinks.push({ href: '/admin', icon: Settings, label: 'Administration' })
+  }
+
   return (
-    <nav
-      className={`fixed w-full z-50 transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-background/80 backdrop-blur-md shadow-lg' 
-          : 'bg-transparent'
-      }`}
-    >
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          <Link 
-            href="/" 
-            className="flex items-center space-x-2 font-bold text-2xl text-primary"
-          >
-            <AcademicCapIcon className="h-8 w-8" />
-            <span>KnowLedger</span>
-          </Link>
-          
-          <div className="hidden md:flex items-center space-x-10">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
-              
-              return (
+    <>
+      <header className={cn(
+        'fixed top-0 left-0 right-0 z-50 bg-background transition-all duration-200',
+        isScrolled && 'border-b shadow-sm'
+      )}>
+        <nav className="container mx-auto px-4">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo - Toujours visible */}
+            <Link href="/" className="text-xl font-bold">
+              KnowLedger
+            </Link>
+
+            {/* Menu hamburger sur mobile */}
+            <button
+              className="lg:hidden"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
+
+            {/* Navigation desktop */}
+            <div className="hidden lg:flex lg:items-center lg:space-x-4">
+              {navLinks.map((link) => (
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center space-x-2 relative group py-3 px-3 rounded-lg hover:bg-secondary/50 ${
-                    isActive 
-                      ? 'text-primary' 
-                      : 'text-muted-foreground hover:text-primary'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.name}</span>
-                  {isActive && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary" />
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'flex items-center space-x-1 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent',
+                    pathname === link.href ? 'bg-accent' : 'transparent'
                   )}
+                >
+                  <link.icon className="h-4 w-4" />
+                  <span>{link.label}</span>
                 </Link>
-              )
-            })}
-          </div>
+              ))}
+            </div>
 
-          <div className="flex items-center space-x-6">
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="p-2 rounded-full hover:bg-secondary"
-              aria-label="Search"
-            >
-              <MagnifyingGlassIcon className="h-5 w-5" />
-            </button>
-
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-secondary"
-              aria-label="Toggle theme"
-            >
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={theme}
-                  initial={{ y: -20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 20, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {theme === 'dark' ? (
-                    <SunIcon className="h-5 w-5" />
-                  ) : (
-                    <MoonIcon className="h-5 w-5" />
-                  )}
-                </motion.div>
-              </AnimatePresence>
-            </button>
-
-            {showPremiumLink && (
-              <Link
-                href="/premium"
-                className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+            {/* Actions desktop */}
+            <div className="hidden lg:flex lg:items-center lg:space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSearchOpen(true)}
               >
-                <SparklesIcon className="h-5 w-5" />
-                <span className="font-medium">Devenir Premium</span>
-              </Link>
-            )}
+                <Search className="h-5 w-5" />
+              </Button>
 
-            {isAuthenticated ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center space-x-2 text-muted-foreground hover:text-primary"
-                >
-                  <UserCircleIcon className="h-6 w-6" />
-                  <span>{user?.name}</span>
-                  <ChevronDownIcon className="h-4 w-4" />
-                </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleTheme()}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </Button>
 
-                {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card border">
+              {user ? (
+                <div className="relative group">
+                  <Button
+                    variant="ghost"
+                    className="flex items-center space-x-1"
+                  >
+                    <UserCircle className="h-5 w-5" />
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+
+                  <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-card border shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="py-1">
                       <Link
                         href="/profile"
-                        className="block px-4 py-2 text-sm text-foreground hover:bg-secondary"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-accent"
                       >
-                        Mon profil
+                        <Settings className="mr-2 h-4 w-4" />
+                        Mon Profil
                       </Link>
+                      {['ADMIN', 'FORMATOR'].includes(user.role || '') && (
+                        <Link
+                          href="/profile/contenu"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-accent"
+                        >
+                          <PenSquare className="mr-2 h-4 w-4" />
+                          Mes Contenus
+                        </Link>
+                      )}
                       <button
-                        onClick={() => signOut()}
-                        className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary"
+                        onClick={handleSignOut}
+                        className="flex w-full items-center px-4 py-2 text-sm text-destructive hover:bg-accent"
                       >
                         Déconnexion
                       </button>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <Link href="/login">
+                  <Button>
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    Connexion
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Menu mobile */}
+          {isMobileMenuOpen && (
+            <div className="lg:hidden border-t">
+              <div className="space-y-2 py-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      'flex items-center space-x-2 px-4 py-2 text-sm transition-colors hover:bg-accent',
+                      pathname === link.href ? 'bg-accent' : 'transparent'
+                    )}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    <span>{link.label}</span>
+                  </Link>
+                ))}
+
+                <div className="border-t my-2" />
+
+                <button
+                  className="flex w-full items-center space-x-2 px-4 py-2 text-sm hover:bg-accent"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false)
+                    setIsSearchOpen(true)
+                  }}
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Rechercher</span>
+                </button>
+
+                <button
+                  className="flex w-full items-center space-x-2 px-4 py-2 text-sm hover:bg-accent"
+                  onClick={() => toggleTheme()}
+                >
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun className="h-4 w-4" />
+                      <span>Thème clair</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-4 w-4" />
+                      <span>Thème sombre</span>
+                    </>
+                  )}
+                </button>
+
+                {user ? (
+                  <>
+                    <Link
+                      href="/profile"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm hover:bg-accent"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>Mon Profil</span>
+                    </Link>
+                    {['ADMIN', 'FORMATOR'].includes(user.role || '') && (
+                      <Link
+                        href="/profile/contenu"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <PenSquare className="h-4 w-4" />
+                        <span>Mes Contenus</span>
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false)
+                        handleSignOut()
+                      }}
+                      className="flex w-full items-center space-x-2 px-4 py-2 text-sm text-destructive hover:bg-accent"
+                    >
+                      <span>Déconnexion</span>
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="flex items-center space-x-2 px-4 py-2 text-sm hover:bg-accent"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <UserCircle className="h-4 w-4" />
+                    <span>Connexion</span>
+                  </Link>
                 )}
               </div>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center space-x-2 px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <UserCircleIcon className="h-5 w-5" />
-                <span>Connexion</span>
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
+          )}
+        </nav>
+      </header>
+
       <SearchDialog isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-    </nav>
+    </>
   )
 }
 

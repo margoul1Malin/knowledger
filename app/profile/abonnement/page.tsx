@@ -24,8 +24,14 @@ interface Subscription {
   cancelledAt?: string | null
 }
 
+interface SubscriptionData {
+  role: 'USER' | 'ADMIN' | 'FORMATOR'
+  hasPremiumAccess: boolean
+  subscription: Subscription | null
+}
+
 export default function AbonnementPage() {
-  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
@@ -37,12 +43,17 @@ export default function AbonnementPage() {
   const fetchSubscription = async () => {
     try {
       const res = await fetch('/api/subscription')
-      if (res.ok) {
-        const data = await res.json()
-        setSubscription(data)
-      }
+      if (!res.ok) throw new Error('Erreur lors de la récupération')
+      
+      const data = await res.json()
+      setSubscriptionData(data)
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'abonnement:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de récupérer les informations de l\'abonnement.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -61,7 +72,7 @@ export default function AbonnementPage() {
         description: 'Votre abonnement sera actif jusqu\'à la fin de la période en cours.',
       })
       
-      fetchSubscription() // Rafraîchir les données
+      fetchSubscription()
     } catch (error) {
       toast({
         title: 'Erreur',
@@ -74,21 +85,57 @@ export default function AbonnementPage() {
   }
 
   const handleRenew = () => {
-    router.push('/premium') // Rediriger vers la page de souscription
+    router.push('/premium')
+  }
+
+  const renderAdminFormatorInfo = () => {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Accès Premium Permanent</CardTitle>
+              <CardDescription>
+                En tant que {subscriptionData?.role === 'ADMIN' ? 'administrateur' : 'formateur'}, 
+                vous avez accès à tout le contenu premium
+              </CardDescription>
+            </div>
+            <Badge variant="success">Actif</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            <p>Vous avez accès à :</p>
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li>Tous les articles premium</li>
+              <li>Toutes les vidéos premium</li>
+              <li>Toutes les formations complètes</li>
+              <li>Support prioritaire</li>
+              {subscriptionData?.role === 'ADMIN' && (
+                <li>Fonctionnalités d'administration</li>
+              )}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   const renderSubscriptionInfo = () => {
-    const planLabel = subscription?.plan === 'YEARLY' 
+    const subscription = subscriptionData?.subscription
+    if (!subscription) return null
+
+    const planLabel = subscription.plan === 'YEARLY' 
       ? 'annuel' 
-      : subscription?.plan === 'MONTHLY'
+      : subscription.plan === 'MONTHLY'
       ? 'mensuel'
       : 'journalier'
 
-    const endDate = subscription?.endDate 
+    const endDate = subscription.endDate 
       ? new Date(subscription.endDate).toLocaleDateString('fr-FR')
       : 'Non disponible'
 
-    const isCancelled = subscription?.cancelledAt !== null
+    const isCancelled = subscription.cancelledAt !== null
     
     return (
       <Card>
@@ -101,11 +148,11 @@ export default function AbonnementPage() {
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <Badge variant={subscription?.isActive ? 'default' : 'destructive'}>
-                {subscription?.isActive ? 'Actif' : 'Inactif'}
+              <Badge variant={subscription.isActive ? 'success' : 'destructive'}>
+                {subscription.isActive ? 'Actif' : 'Inactif'}
               </Badge>
               <span className="text-sm text-muted-foreground">
-                {subscription?.isActive 
+                {subscription.isActive 
                   ? 'Votre abonnement est actif' 
                   : 'Votre abonnement n\'est plus actif'}
               </span>
@@ -132,9 +179,9 @@ export default function AbonnementPage() {
               <h3 className="font-medium mb-2">Détails du plan</h3>
               <div className="text-sm text-muted-foreground">
                 <p>Type : Premium {planLabel}</p>
-                <p>Prix : {subscription?.plan === 'YEARLY' 
+                <p>Prix : {subscription.plan === 'YEARLY' 
                   ? '249.99€/an' 
-                  : subscription?.plan === 'MONTHLY'
+                  : subscription.plan === 'MONTHLY'
                   ? '24.99€/mois'
                   : '2.99€/jour'
                 }</p>
@@ -166,26 +213,47 @@ export default function AbonnementPage() {
     )
   }
 
+  const renderNoSubscription = () => {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Aucun abonnement</CardTitle>
+          <CardDescription>
+            Vous n'avez pas encore souscrit à un abonnement premium. Découvrez nos offres pour accéder à tout le contenu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            <p>En devenant premium, vous aurez accès à :</p>
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li>Tous les articles premium</li>
+              <li>Toutes les vidéos premium</li>
+              <li>Toutes les formations complètes</li>
+              <li>Support prioritaire</li>
+            </ul>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            onClick={handleRenew} 
+            className="w-full"
+          >
+            Voir les offres Premium
+          </Button>
+        </CardFooter>
+      </Card>
+    )
+  }
+
   const renderContent = () => {
-    if (!subscription) {
-      return (
-        <Card className="w-full max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Aucun abonnement actif</CardTitle>
-            <CardDescription>
-              Vous n'avez pas d'abonnement premium en cours.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button 
-              onClick={handleRenew} 
-              className="w-full"
-            >
-              Devenir Premium
-            </Button>
-          </CardFooter>
-        </Card>
-      )
+    if (!subscriptionData) return null
+
+    if (subscriptionData.role === 'ADMIN' || subscriptionData.role === 'FORMATOR') {
+      return renderAdminFormatorInfo()
+    }
+
+    if (!subscriptionData.subscription) {
+      return renderNoSubscription()
     }
 
     return renderSubscriptionInfo()
