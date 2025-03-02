@@ -1,0 +1,18 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /articles
+Allow: /videos
+Allow: /formations
+Allow: /about
+Allow: /contact
+Allow: /sitemap
+
+# Interdire l'accès aux pages d'administration et aux routes privées
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard/
+
+# Sitemap
+Sitemap: https://knowledger.vercel.app/sitemap.xml 

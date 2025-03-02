@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useTheme } from '@/app/providers/ThemeProvider'
+import Image from 'next/image'
 import { 
   Home, 
   Newspaper, 
@@ -116,10 +117,11 @@ const Navbar = () => {
         'fixed top-0 left-0 right-0 z-50 bg-background transition-all duration-200',
         isScrolled && 'border-b shadow-sm'
       )}>
-        <nav className="container mx-auto px-4">
+        <nav className="container mx-auto p-2">
           <div className="flex h-16 items-center justify-between">
             {/* Logo - Toujours visible */}
-            <Link href="/" className="text-xl font-bold">
+            <Link href="/" className="text-xl lg:text-4xl font-bold text-primary">
+              {/*<Image src="/logos/KBlueSquare.png" alt="Knowledger" width={180} height={80} />*/}
               KnowLedger
             </Link>
 

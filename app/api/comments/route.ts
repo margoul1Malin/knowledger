@@ -21,6 +21,7 @@ export async function GET(req: Request) {
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             image: true
           }
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             image: true
           }
@@ -98,7 +100,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(comment)
   } catch (error) {
-    console.error("[COMMENT_POST]", error)
+    console.error("[COMMENTS_POST]", error)
     return new NextResponse("Erreur interne", { status: 500 })
   }
 } 

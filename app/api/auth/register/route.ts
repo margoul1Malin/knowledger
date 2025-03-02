@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/prisma'
+import { registerSchema } from '@/lib/validations'
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json()
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { message: "Tous les champs sont requis" },
-        { status: 400 }
-      )
+    const body = await req.json()
+    
+    // Valider les données avec le schéma
+    const result = registerSchema.safeParse(body)
+    
+    if (!result.success) {
+      const errors = result.error.errors.map(error => ({
+        path: error.path.join('.'),
+        message: error.message
+      }))
+      return NextResponse.json({ errors }, { status: 400 })
     }
+
+    const { name, email, password } = result.data
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findUnique({

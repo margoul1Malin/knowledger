@@ -11,6 +11,7 @@ import {
   BookOpenIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/app/hooks/useAuth'
+import Image from 'next/image'
 
 const navigation = [
   { name: 'Accueil', href: '/', icon: HomeIcon },
@@ -80,6 +81,8 @@ export default function Footer() {
   return (
     <footer className="bg-card">
       <div className="mx-auto max-w-7xl overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between">
+        <Image src="/logos/KBlueSquare.png" alt="Logo" width={200} height={200} />
         {/* Navigation principale */}
         <nav className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" aria-label="Footer">
           {/* Section À propos */}
@@ -87,18 +90,23 @@ export default function Footer() {
             <h3 className="text-lg font-semibold mb-4">À propos</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/about" className="text-md text-muted-foreground hover:text-foreground">
                   Qui ?
                 </Link>
               </li>
               <li>
-                <Link href="https://real-margoul1-store.vercel.app/" target="_blank" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="https://real-margoul1-store.vercel.app/" target="_blank" className="text-md text-muted-foreground hover:text-foreground">
                   Margoul1 Store
                 </Link>
               </li>
               <li>
-                <Link href="/formatorquery" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/formatorquery" className="text-md text-muted-foreground hover:text-foreground">
                   Devenir Formateur
+                </Link>
+              </li>
+              <li>
+                <Link href="/sitemap" className="text-md text-muted-foreground hover:text-foreground">
+                  Plan du site
                 </Link>
               </li>
             </ul>
@@ -114,7 +122,7 @@ export default function Footer() {
                   <li key={item.name}>
                     <Link
                       href={item.href}
-                      className={`flex items-center gap-2 text-sm ${
+                      className={`flex items-center gap-2 text-md ${
                         isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
@@ -132,17 +140,17 @@ export default function Footer() {
             <h3 className="text-lg font-semibold mb-4">Légal</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/legal/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/legal/privacy" className="text-md text-muted-foreground hover:text-foreground">
                   Politique de confidentialité
                 </Link>
               </li>
               <li>
-                <Link href="/legal/terms" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/legal/terms" className="text-md text-muted-foreground hover:text-foreground">
                   Conditions d'utilisation
                 </Link>
               </li>
               <li>
-                <Link href="/legal/cookies" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/legal/cookies" className="text-md text-muted-foreground hover:text-foreground">
                   Cookies
                 </Link>
               </li>
@@ -154,18 +162,24 @@ export default function Footer() {
             <h3 className="text-lg font-semibold mb-4">Contact</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/contact" className="text-md text-muted-foreground hover:text-foreground">
                   Nous contacter
                 </Link>
               </li>
               <li>
-                <Link href="/contributions" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/contributions" className="text-md text-muted-foreground hover:text-foreground">
                   Contribuer
+                </Link>
+              </li>
+              <li>
+                <Link href="/formatorquery" className="text-md text-muted-foreground hover:text-foreground">
+                  Devenir Formateur
                 </Link>
               </li>
             </ul>
           </div>
         </nav>
+        </div>
 
         {/* Réseaux sociaux */}
         <div className="mt-8 border-t border-border pt-8">
