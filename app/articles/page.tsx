@@ -1,15 +1,29 @@
 import prisma from '@/lib/prisma'
 import ArticlesList from '@/app/components/articles/ArticlesList'
 
-export default async function Articles() {
-  const articles = await prisma.article.findMany({
-    include: {
-      author: true
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  })
+export default async function Articles({
+  searchParams
+}: {
+  searchParams: { page?: string }
+}) {
+  const page = parseInt(searchParams.page || '1')
+  const limit = 15
+
+  const [articles, total] = await Promise.all([
+    prisma.article.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        author: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    }),
+    prisma.article.count()
+  ])
+
+  const totalPages = Math.ceil(total / limit)
 
   return (
     <div className="min-h-screen bg-background pt-24">
@@ -23,7 +37,10 @@ export default async function Articles() {
           </p>
         </div>
 
-        <ArticlesList articles={articles} />
+        <ArticlesList 
+          initialArticles={articles} 
+          totalPages={totalPages}
+        />
       </div>
     </div>
   )

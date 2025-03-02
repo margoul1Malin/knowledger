@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import slugify from 'slugify'
+import { slugify as customSlugify } from '@/lib/utils'
 
 export async function GET(request: Request) {
   try {
@@ -90,11 +91,14 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role as string)) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
     const data = await request.json()
+
+    // Créer un slug unique avec un timestamp
+    const uniqueSlug = `${customSlugify(data.title)}-${Date.now()}`
 
     // Créer la vidéo
     const video = await prisma.video.create({
@@ -105,7 +109,7 @@ export async function POST(request: Request) {
         coverImage: data.coverImage || data.videoUrl.replace(/\.[^/.]+$/, '.jpg'),
         isPremium: false,
         price: null,
-        slug: slugify(data.title, { lower: true }),
+        slug: uniqueSlug,
         author: {
           connect: {
             id: session.user.id
@@ -113,7 +117,7 @@ export async function POST(request: Request) {
         },
         category: {
           connect: {
-            id: "67c2407acbf64d7a1b89aa91" // ID de la catégorie par défaut
+            id: data.categoryId
           }
         }
       }

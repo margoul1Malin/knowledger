@@ -1,19 +1,24 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { UserRole } from '@prisma/client'
+import { cn } from '@/lib/utils'
+import { useState } from 'react'
 import {
-  UserIcon,
-  ClockIcon,
-  DocumentTextIcon,
-  SparklesIcon,
-  BellIcon,
-  ShoppingBagIcon,
-  PencilSquareIcon,
-  ShieldCheckIcon
-} from '@heroicons/react/24/outline'
+  UserCircle,
+  History,
+  Bell,
+  ShieldCheck,
+  CreditCard,
+  FileText,
+  Menu,
+  X,
+  PenSquare,
+  ShoppingBag,
+  Home
+} from 'lucide-react'
 
 type NavLink = {
   href: string
@@ -23,50 +28,55 @@ type NavLink = {
   roles?: UserRole[]
 }
 
-const links: NavLink[] = [
+const navLinks: NavLink[] = [
+  {
+    href: '/',
+    label: 'Home',
+    icon: Home,
+    exact: true
+  },
   {
     href: '/profile',
     label: 'Infos Personnelles',
-    icon: UserIcon,
+    icon: UserCircle,
     exact: true
   },
   {
     href: '/profile/historique',
     label: 'Historique',
-    icon: ClockIcon,
-    roles: [UserRole.ADMIN, UserRole.FORMATOR, UserRole.PREMIUM]
+    icon: History,
+    roles: [UserRole.PREMIUM, UserRole.ADMIN, UserRole.FORMATOR]
   },
   {
     href: '/profile/achats',
     label: 'Mes Achats',
-    icon: ShoppingBagIcon,
-    roles: [UserRole.NORMAL]
-  },
-  {
-    href: '/profile/contenu',
-    label: 'Mon Contenu',
-    icon: DocumentTextIcon,
-    roles: [UserRole.ADMIN, UserRole.FORMATOR]
-  },
-  {
-    href: '/profile/abonnement',
-    label: 'Abonnement',
-    icon: SparklesIcon
+    icon: ShoppingBag,
   },
   {
     href: '/profile/notifications',
     label: 'Notifications',
-    icon: BellIcon
+    icon: Bell
   },
   {
     href: '/profile/securite',
     label: 'Sécurité',
-    icon: ShieldCheckIcon
+    icon: ShieldCheck
+  },
+  {
+    href: '/profile/abonnement',
+    label: 'Abonnement',
+    icon: CreditCard
+  },
+  {
+    href: '/profile/contenu',
+    label: 'Mon contenu',
+    icon: FileText,
+    roles: [UserRole.ADMIN, UserRole.FORMATOR]
   },
   {
     href: '/profile/edit',
-    label: 'Public Profile',
-    icon: PencilSquareIcon,
+    label: 'Profil Public',
+    icon: PenSquare,
     roles: [UserRole.ADMIN, UserRole.FORMATOR]
   }
 ]
@@ -74,42 +84,84 @@ const links: NavLink[] = [
 export default function ProfileSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
+  const [isOpen, setIsOpen] = useState(false)
 
   const isLinkActive = (href: string, exact = false) => {
     if (exact) return pathname === href
     return pathname.startsWith(href)
   }
 
-  const userRole = session?.user?.role as UserRole | undefined
+  const filteredLinks = navLinks.filter(link => 
+    !link.roles || link.roles.includes(session?.user?.role as UserRole)
+  )
 
   return (
-    <aside className="w-64 fixed left-0 top-0 h-screen pt-24 px-4 border-r border-border bg-background">
-      <nav className="space-y-1">
-        {links.map((link) => {
-          // Si le lien nécessite un rôle spécifique et que l'utilisateur n'a pas ce rôle, on ne l'affiche pas
-          if (link.roles && (!userRole || !link.roles.includes(userRole))) {
-            return null
-          }
+    <>
+      {/* Menu mobile */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
+        <div className="flex items-center justify-between p-4">
+          <h2 className="text-lg font-semibold">Menu du profil</h2>
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-2 hover:bg-accent rounded-md"
+          >
+            {isOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </button>
+        </div>
 
-          const isActive = isLinkActive(link.href, link.exact)
-          const Icon = link.icon
+        {isOpen && (
+          <div className="fixed top-[60px] left-0 right-0 bottom-0 bg-background/95 backdrop-blur-sm border-b border-border overflow-y-auto">
+            <nav className="flex flex-col p-4 space-y-2">
+              {filteredLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+                    isLinkActive(link.href, link.exact)
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  )}
+                >
+                  <link.icon className="h-5 w-5" />
+                  <span>{link.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
+      </div>
 
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                ${isActive 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'text-muted-foreground hover:bg-muted'
-                }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span>{link.label}</span>
-            </Link>
-          )
-        })}
-      </nav>
-    </aside>
+      {/* Sidebar desktop */}
+      <div className="hidden lg:block fixed top-0 left-0 w-64 h-screen border-r border-border">
+        <div className="flex flex-col h-full pt-24 pb-4">
+          <div className="px-4 mb-8">
+            <h2 className="text-lg font-semibold">Menu du profil</h2>
+          </div>
+          <nav className="flex-1 px-2 space-y-1">
+            {filteredLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+                  isLinkActive(link.href, link.exact)
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent"
+                )}
+              >
+                <link.icon className="h-5 w-5" />
+                <span>{link.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </div>
+    </>
   )
 } 

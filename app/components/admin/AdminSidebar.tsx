@@ -11,7 +11,9 @@ import {
   TagIcon, 
   LightBulbIcon,
   InboxIcon,
-  UserPlusIcon 
+  UserPlusIcon,
+  MagnifyingGlassIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline'
 
 const menuItems = [
@@ -65,6 +67,16 @@ const menuItems = [
     href: '/admin/todo',
     icon: LightBulbIcon,
     description: 'Fonctionnalités futures à implémenter'
+  },
+  {
+    name: 'Rechercher',
+    href: '/admin/search',
+    icon: MagnifyingGlassIcon,
+  },
+  {
+    name: 'Paramètres du Site',
+    href: '/admin/settings',
+    icon: Cog6ToothIcon,
   }
 ]
 

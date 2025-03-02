@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import slugify from '@/lib/slugify'
+import { slugify } from '@/lib/utils'
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +18,9 @@ export async function POST(req: Request) {
 
     const data = await req.json()
 
+    // Créer un slug unique avec un timestamp
+    const uniqueSlug = `${slugify(data.title)}-${Date.now()}`
+
     // Créer l'article
     const article = await prisma.article.create({
       data: {
@@ -26,7 +29,7 @@ export async function POST(req: Request) {
         imageUrl: data.imageUrl,
         isPremium: data.isPremium,
         price: data.price,
-        slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        slug: uniqueSlug,
         authorId: session.user.id,
         categoryId: data.categoryId
       }
@@ -56,59 +59,28 @@ export async function POST(req: Request) {
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '15')
-    const skip = (page - 1) * limit
-
-    const session = await getServerSession(authOptions)
-    const userId = session?.user?.id
-
-    const [total, items] = await Promise.all([
-      prisma.article.count(),
-      prisma.article.findMany({
-        skip,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              image: true
-            }
-          },
-          purchases: userId ? {
-            where: {
-              userId: userId
-            }
-          } : false
-        },
-        orderBy: {
-          createdAt: 'desc'
+    const articles = await prisma.article.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        author: {
+          select: {
+            name: true,
+            image: true
+          }
         }
-      })
-    ])
-
-    // Ajouter hasPurchased à chaque article
-    const articlesWithPurchaseInfo = items.map(article => ({
-      ...article,
-      hasPurchased: article.purchases && article.purchases.length > 0,
-      purchases: undefined // Supprimer les données de purchase pour alléger la réponse
-    }))
-
-    return NextResponse.json({
-      items: articlesWithPurchaseInfo,
-      pagination: {
-        total,
-        pages: Math.ceil(total / limit),
-        page,
-        limit
       }
     })
+
+    return NextResponse.json({
+      items: articles,
+      total: articles.length
+    })
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur lors de la récupération des articles:', error)
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: 'Erreur lors de la récupération des articles' },
       { status: 500 }
     )
   }

@@ -16,12 +16,10 @@ export default async function ProfileLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex">
-        <ProfileSidebar />
-        <main className="flex-1 p-8 pt-24 ml-64">
-          {children}
-        </main>
-      </div>
+      <ProfileSidebar />
+      <main className="lg:pl-64">
+        {children}
+      </main>
     </div>
   )
 } 

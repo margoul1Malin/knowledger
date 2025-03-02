@@ -20,4 +20,14 @@ export function formatDuration(minutes: number | null | undefined): string {
   }
 
   return `${hours}h${remainingMinutes}min`
+}
+
+export function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '')
 } 

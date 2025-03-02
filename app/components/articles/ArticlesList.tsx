@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowUpRightIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
@@ -13,6 +13,11 @@ import Pagination from '@/app/components/ui/Pagination'
 
 type ArticleWithAuthor = Article & {
   author: User
+}
+
+interface ArticlesListProps {
+  initialArticles: ArticleWithAuthor[]
+  totalPages: number
 }
 
 const container = {
@@ -30,41 +35,16 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
-export default function ArticlesList() {
+export default function ArticlesList({ initialArticles, totalPages }: ArticlesListProps) {
   const { user } = useAuth()
-  const [articles, setArticles] = useState<(ArticleWithAuthor & { hasPurchased?: boolean })[]>([])
+  const [articles] = useState<ArticleWithAuthor[]>(initialArticles)
   const [selectedArticle, setSelectedArticle] = useState<ArticleWithAuthor | null>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [pagination, setPagination] = useState({
-    total: 0,
-    pages: 0,
-    page: 1,
-    limit: 15
-  })
 
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const currentPage = parseInt(searchParams.get('page') || '1')
-
-  useEffect(() => {
-    fetchArticles(currentPage)
-  }, [currentPage])
-
-  const fetchArticles = async (page: number) => {
-    try {
-      const res = await fetch(`/api/articles?page=${page}`)
-      if (!res.ok) throw new Error('Erreur lors de la récupération des articles')
-      const data = await res.json()
-      setArticles(data.items)
-      setPagination(data.pagination)
-    } catch (error) {
-      console.error('Erreur:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(searchParams)
@@ -74,16 +54,14 @@ export default function ArticlesList() {
   }
 
   const handleArticleClick = (article: ArticleWithAuthor) => {
-    if (!article.isPremium || article.hasPurchased || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
-      window.location.href = `/articles/${article.slug}`
+    if (!article.isPremium || ['PREMIUM', 'ADMIN', 'FORMATOR'].includes(user?.role || '')) {
+      router.push(`/articles/${article.slug}`)
       return
     }
     
     setSelectedArticle(article)
     setShowPurchaseModal(true)
   }
-
-  if (isLoading) return <div>Chargement...</div>
 
   return (
     <>
@@ -110,7 +88,7 @@ export default function ArticlesList() {
                 />
                 {article.isPremium && (
                   <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground px-2 py-1 rounded text-sm font-medium">
-                    {article.hasPurchased ? 'Acheté' : `${article.price}€`}
+                    {article.price}€
                   </div>
                 )}
               </div>
@@ -146,8 +124,8 @@ export default function ArticlesList() {
       )}
 
       <Pagination
-        currentPage={pagination.page}
-        totalPages={pagination.pages}
+        currentPage={currentPage}
+        totalPages={totalPages}
         onPageChange={handlePageChange}
       />
     </>

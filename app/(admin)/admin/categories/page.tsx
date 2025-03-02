@@ -1,43 +1,35 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-
-const categorySchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  slug: z.string().min(1, "Le slug est requis")
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Le slug doit être en minuscules, sans espaces ni caractères spéciaux"),
-})
-
-type CategoryForm = z.infer<typeof categorySchema>
+import Link from 'next/link'
+import { PlusIcon } from '@heroicons/react/24/outline'
+import DataTable from '@/app/components/admin/DataTable'
 
 type Category = {
   id: string
   name: string
-  slug: string
   createdAt: string
+  _count: {
+    articles: number
+    videos: number
+    formations: number
+  }
 }
 
-export default function CategoriesPage() {
+export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CategoryForm>({
-    resolver: zodResolver(categorySchema)
-  })
+  const [isLoading, setIsLoading] = useState(true)
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories')
+      const res = await fetch('/api/admin/categories')
       if (!res.ok) throw new Error('Erreur lors du chargement des catégories')
       const data = await res.json()
-      setCategories(data)
+      setCategories(data || [])
     } catch (error) {
       console.error('Erreur:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -45,165 +37,74 @@ export default function CategoriesPage() {
     fetchCategories()
   }, [])
 
-  const generateSlug = (name: string) => {
-    return name.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, '')
-      .replace(/\-\-+/g, '-')
-      .replace(/^-+/, '')
-      .replace(/-+$/, '')
-  }
-
-  const onSubmit = async (data: CategoryForm) => {
-    setIsLoading(true)
+  const handleDelete = async (ids: string[]) => {
     try {
-      const url = editingId 
-        ? `/api/admin/categories/${editingId}`
-        : '/api/categories'
-      
-      const method = editingId ? 'PUT' : 'POST'
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!res.ok) throw new Error('Erreur lors de la sauvegarde')
-      
-      await fetchCategories()
-      reset()
-      setEditingId(null)
+      await Promise.all(
+        ids.map(id =>
+          fetch(`/api/admin/categories/${id}`, {
+            method: 'DELETE',
+          })
+        )
+      )
+      // Rafraîchir la liste après suppression
+      fetchCategories()
     } catch (error) {
-      console.error(error)
-    } finally {
-      setIsLoading(false)
+      console.error('Erreur lors de la suppression:', error)
     }
   }
 
-  const handleEdit = (category: Category) => {
-    setEditingId(category.id)
-    setValue('name', category.name)
-    setValue('slug', category.slug)
-  }
+  const columns = [
+    {
+      field: 'name',
+      header: 'Nom',
+    },
+    {
+      field: '_count',
+      header: 'Contenus',
+      render: (count: Category['_count']) => (
+        <div className="flex gap-2">
+          <span className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-full">
+            {count.articles} articles
+          </span>
+          <span className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-full">
+            {count.videos} vidéos
+          </span>
+          <span className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-full">
+            {count.formations} formations
+          </span>
+        </div>
+      ),
+    },
+    {
+      field: 'createdAt',
+      header: 'Date de création',
+      render: (value: string) => new Date(value).toLocaleDateString('fr-FR'),
+    },
+  ]
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) return
-
-    try {
-      const res = await fetch(`/api/admin/categories/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Erreur lors de la suppression')
-      }
-
-      await fetchCategories()
-    } catch (error) {
-      console.error('Erreur:', error)
-      alert(error instanceof Error ? error.message : 'Erreur lors de la suppression')
-    }
+  if (isLoading) {
+    return <div className="text-center p-8">Chargement...</div>
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestion des catégories</h1>
+    <div className="space-y-6 p-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Catégories</h1>
+        <Link
+          href="/admin/categories/new"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+        >
+          <PlusIcon className="h-5 w-5" />
+          Nouvelle catégorie
+        </Link>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-card border border-border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-4">
-            {editingId ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
-          </h2>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Nom</label>
-              <input
-                {...register("name")}
-                onChange={(e) => {
-                  register("name").onChange(e)
-                  // Auto-générer le slug lors de la saisie du nom
-                  setValue("slug", generateSlug(e.target.value))
-                }}
-                className="w-full p-2 rounded-lg border border-input bg-background"
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Slug</label>
-              <input
-                {...register("slug")}
-                className="w-full p-2 rounded-lg border border-input bg-background"
-              />
-              {errors.slug && (
-                <p className="text-sm text-destructive mt-1">{errors.slug.message}</p>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
-              >
-                {isLoading ? 'Sauvegarde...' : (editingId ? 'Modifier' : 'Créer')}
-              </button>
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    reset()
-                    setEditingId(null)
-                  }}
-                  className="py-2 px-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/90"
-                >
-                  Annuler
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
-
-        <div className="bg-card border border-border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-4">Liste des catégories</h2>
-          <div className="space-y-2">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="flex items-center justify-between p-2 bg-background rounded-lg border border-input"
-              >
-                <div>
-                  <p className="font-medium">{category.name}</p>
-                  <p className="text-sm text-muted-foreground">{category.slug}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(category)}
-                    className="p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <PencilIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(category.id)}
-                    className="p-1 text-destructive hover:text-destructive/80"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <DataTable
+        data={categories}
+        columns={columns}
+        onDelete={handleDelete}
+        editUrl={(category) => `/admin/categories/${category.id}/edit`}
+      />
     </div>
   )
 } 

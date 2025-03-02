@@ -298,7 +298,7 @@ model Subscription {
   userId              String    @unique @db.ObjectId
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   stripeCustomerId    String?
-  stripeSubscriptionId String?
+  stripeSubscriptionId String?  @unique
   stripePriceId       String?
   plan                String    @default("MONTHLY") // DAILY, MONTHLY, YEARLY
   isActive            Boolean   @default(false)
@@ -315,4 +315,11 @@ model TwoFactorAuth {
   expiresAt DateTime
   verified  Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+} 
+
+model AdminSettings {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  maintenanceMode       Boolean  @default(false)
+  registrationsClosed   Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
 } 

@@ -128,12 +128,12 @@ export default function ProfilePage() {
   const isCreator = session?.user?.role === UserRole.FORMATOR || session?.user?.role === UserRole.ADMIN
 
   return (
-    <div className="container py-8 space-y-8">
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h1 className="text-2xl font-bold mb-6">Informations personnelles</h1>
+    <div className="container py-4 lg:py-8 space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+          <h1 className="text-xl lg:text-2xl font-bold mb-6">Informations personnelles</h1>
           
-          <div className="flex items-center gap-6 mb-8">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 lg:gap-6 mb-6 lg:mb-8">
             <div className="relative">
               <input
                 type="file"
@@ -167,13 +167,13 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold">{session?.user?.name}</h2>
+            <div className="text-center sm:text-left">
+              <h2 className="text-lg lg:text-xl font-semibold">{session?.user?.name}</h2>
               <p className="text-muted-foreground">{session?.user?.email}</p>
             </div>
           </div>
 
-          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-2">
                 Nom d'utilisateur
@@ -183,7 +183,7 @@ export default function ProfilePage() {
                 id="name"
                 name="name"
                 defaultValue={session?.user?.name || ''}
-                className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 lg:px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -197,7 +197,7 @@ export default function ProfilePage() {
                 name="email"
                 defaultValue={session?.user?.email || ''}
                 disabled
-                className="w-full px-4 py-2 bg-muted border border-input rounded-lg cursor-not-allowed"
+                className="w-full px-3 lg:px-4 py-2 bg-muted border border-input rounded-lg cursor-not-allowed"
               />
               <p className="text-sm text-muted-foreground mt-1">
                 L'email ne peut pas être modifié
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                 type="password"
                 id="currentPassword"
                 name="currentPassword"
-                className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 lg:px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -224,7 +224,7 @@ export default function ProfilePage() {
                 type="password"
                 id="newPassword"
                 name="newPassword"
-                className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 lg:px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -236,7 +236,7 @@ export default function ProfilePage() {
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
-                className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 lg:px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 

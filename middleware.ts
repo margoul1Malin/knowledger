@@ -1,41 +1,42 @@
 import { NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { NextRequestWithAuth } from 'next-auth/middleware'
+import type { NextRequest } from 'next/server'
 
-export default async function middleware(req: NextRequestWithAuth) {
-  const token = await getToken({ req })
-  const isAuthenticated = !!token
+export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname
 
-  // Routes publiques
-  const publicRoutes = ['/', '/login', '/register']
-  if (publicRoutes.includes(req.nextUrl.pathname)) {
+  // Ignorer les routes d'API et les assets
+  if (
+    path.startsWith('/api') || 
+    path.startsWith('/_next') || 
+    path.startsWith('/static')
+  ) {
     return NextResponse.next()
   }
 
-  // Routes protégées
-  if (!isAuthenticated) {
-    return NextResponse.redirect(new URL('/login', req.url))
+  // Vérifier le token d'authentification
+  const token = await getToken({ req: request })
+  const isAdmin = token?.role === 'ADMIN'
+
+  // Récupérer les paramètres depuis les cookies
+  const settings = {
+    maintenanceMode: request.cookies.get('maintenanceMode')?.value === 'true',
+    registrationsClosed: request.cookies.get('registrationsClosed')?.value === 'true'
   }
 
-  // Routes spécifiques aux rôles
-  if (req.nextUrl.pathname.startsWith('/admin') && token?.role !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/', req.url))
+  // Si le mode maintenance est activé et l'utilisateur n'est pas admin
+  if (settings.maintenanceMode && !isAdmin && path !== '/maintenance') {
+    return NextResponse.redirect(new URL('/maintenance', request.url))
   }
 
-  if (req.nextUrl.pathname.startsWith('/formateur') && token?.role !== 'FORMATOR') {
-    return NextResponse.redirect(new URL('/', req.url))
+  // Si les inscriptions sont fermées et l'utilisateur tente de s'inscrire
+  if (settings.registrationsClosed && path === '/register') {
+    return NextResponse.redirect(new URL('/auth/closed', request.url))
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    '/admin/:path*',
-    '/formateur/:path*',
-    '/profile/:path*',
-    '/formations/:path*',
-    '/videos/:path*',
-    '/articles/:path*',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 } 

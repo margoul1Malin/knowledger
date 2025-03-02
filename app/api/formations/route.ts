@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import slugify from '@/lib/slugify'
+import { slugify } from '@/lib/utils'
 import { Prisma } from '@prisma/client'
 
 export async function POST(req: Request) {
@@ -19,6 +19,9 @@ export async function POST(req: Request) {
 
     const data = await req.json()
 
+    // Créer un slug unique avec un timestamp
+    const uniqueSlug = `${slugify(data.title)}-${Date.now()}`
+
     // Créer la formation
     const formation = await prisma.formation.create({
       data: {
@@ -28,7 +31,7 @@ export async function POST(req: Request) {
         imageUrl: data.imageUrl,
         isPremium: data.isPremium,
         price: data.price,
-        slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        slug: uniqueSlug,
         authorId: session.user.id,
         categoryId: data.categoryId
       }

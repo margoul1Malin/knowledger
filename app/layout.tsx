@@ -7,6 +7,7 @@ import { ThemeProvider } from './providers/ThemeProvider'
 import { Toaster } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import CookieConsent from './components/CookieConsent'
+import SettingsProvider from './providers/SettingsProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className={cn('min-h-screen bg-background font-sans antialiased', inter.className)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <SessionProvider>
+            <SettingsProvider />
             <div className="flex flex-col min-h-screen">
               <Navbar />
               <main className="flex-1 pt-16">

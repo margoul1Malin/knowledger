@@ -2,20 +2,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, VideoCameraIcon, AcademicCapIcon } from "@heroicons/react/24/outline";
+import ArticlesCarousel from '@/app/components/articles/ArticlesCarousel'
 import CodeCard from '@/app/components/ui/CodeCard'
-
 
 export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative h-screen flex items-center">
+      <section className="relative">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary to-secondary/50 -z-10" />
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] -z-10" />
         
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center gap-12">
-            <div className="flex-1 space-y-8">
+        <div className="container mx-auto px-4 py-12">
+          <div className="flex flex-col lg:flex-row items-center gap-12 mb-24">
+            <div className="flex-1 space-y-6 text-center md:text-left">
               <h1 className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
                 Apprenez. Évoluez. Excellez.
               </h1>
@@ -38,21 +38,16 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <div className="flex flex-col lg:flex-row items-center gap-12">
-              <div className="flex-1 space-y-6">
-                {/* Votre contenu textuel existant */}
-              </div>
-              
-              <div className="flex-1">
-                <CodeCard />
-              </div>
+            
+            <div className="hidden lg:block flex-1">
+              <CodeCard />
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-card">
+      <section className="py-24 bg-muted/50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-16 text-card-foreground">
             Ce qui nous rend uniques
@@ -77,18 +72,18 @@ export default function Home() {
 
 const features = [
   {
-    title: "Articles expertisés",
-    description: "Des articles rédigés et vérifiés par des experts du domaine.",
+    title: "Articles de qualité",
+    description: "Des articles rédigés par des experts, couvrant les dernières technologies et meilleures pratiques.",
     icon: DocumentIcon
   },
   {
-    title: "Vidéos haute qualité",
-    description: "Un contenu vidéo professionnel pour un apprentissage optimal.",
+    title: "Vidéos explicatives",
+    description: "Des tutoriels vidéo détaillés pour un apprentissage visuel et pratique.",
     icon: VideoCameraIcon
   },
   {
     title: "Formations complètes",
-    description: "Des parcours d'apprentissage structurés pour progresser efficacement.",
+    description: "Des parcours d'apprentissage structurés pour maîtriser un sujet de A à Z.",
     icon: AcademicCapIcon
   }
-]
+];

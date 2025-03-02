@@ -41,12 +41,24 @@ export async function POST(req: Request) {
     try {
       // En développement, on utilise une tolérance de 5 minutes
       const tolerance = isDevelopment ? 5 * 60 * 1000 : undefined // 5 minutes en millisecondes
-      event = stripe.webhooks.constructEvent(
-        body,
-        signature,
-        webhookSecret,
-        tolerance
-      )
+      
+      // En développement, on peut bypasser la vérification de la signature
+      if (isDevelopment && process.env.SKIP_WEBHOOK_SIGNATURE === 'true') {
+        event = {
+          type: JSON.parse(body).type,
+          data: {
+            object: JSON.parse(body).data.object
+          }
+        } as Stripe.Event
+        console.log('Mode développement : signature bypassed')
+      } else {
+        event = stripe.webhooks.constructEvent(
+          body,
+          signature,
+          webhookSecret,
+          tolerance
+        )
+      }
       console.log('Événement construit avec succès:', event.type)
     } catch (err) {
       console.error('Erreur construction webhook:', err)
