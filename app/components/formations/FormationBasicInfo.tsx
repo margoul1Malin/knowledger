@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import FileUpload from '@/app/components/ui/FileUpload'
-import { uploadFile } from '@/app/lib/upload'
+import FileUpload from '@/app/components/ui/file-upload'
+import type { UploadResult } from '@/lib/cloudinary'
 import dynamic from 'next/dynamic'
+import { useAuth } from '@/app/hooks/useAuth'
+import { toast } from '@/components/ui/use-toast'
 
 const MDEditor = dynamic(
   () => import('@uiw/react-md-editor').then((mod) => mod.default),
@@ -17,40 +19,35 @@ const formationSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   description: z.string().min(1, "La description est requise"),
   content: z.string().min(1, "Le contenu est requis"),
-  imageUrl: z.string().min(1, "L'image de couverture est requise"),
+  coverImage: z.string().min(1, "L'image de couverture est requise"),
+  imagePublicId: z.string().optional(),
   categoryId: z.string().min(1, "La catégorie est requise"),
   isPremium: z.boolean(),
-  price: z.number().optional(),
-})
+  price: z.number()
+}).superRefine((data, ctx) => {
+  if (data.isPremium && data.price <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Le prix doit être supérieur à 0 pour un contenu premium",
+      path: ["price"]
+    });
+  }
+});
 
 type FormationForm = z.infer<typeof formationSchema>
 
 interface FormationBasicInfoProps {
   initialData?: any
-  onSubmit: (data: FormationForm) => void
-  isLoading: boolean
   isEditing?: boolean
+  onComplete: () => void
 }
 
-export default function FormationBasicInfo({ initialData, onSubmit, isLoading, isEditing }: FormationBasicInfoProps) {
+export default function FormationBasicInfo({ initialData, isEditing, onComplete }: FormationBasicInfoProps) {
+  const { user } = useAuth()
   const [categories, setCategories] = useState([])
-  const [markdownDescription, setMarkdownDescription] = useState(initialData?.description || '')
+  const [isLoading, setIsLoading] = useState(false)
   const [markdownContent, setMarkdownContent] = useState(initialData?.content || '')
-
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormationForm>({
-    resolver: zodResolver(formationSchema),
-    defaultValues: {
-      title: initialData?.title || '',
-      description: initialData?.description || '',
-      content: initialData?.content || '',
-      imageUrl: initialData?.imageUrl || '',
-      categoryId: initialData?.categoryId || '',
-      isPremium: initialData?.isPremium || false,
-      price: initialData?.price || 0,
-    }
-  })
-
-  const isPremium = watch("isPremium")
+  const [markdownDescription, setMarkdownDescription] = useState(initialData?.description || '')
 
   useEffect(() => {
     fetch('/api/categories')
@@ -58,12 +55,103 @@ export default function FormationBasicInfo({ initialData, onSubmit, isLoading, i
       .then(data => setCategories(data))
   }, [])
 
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormationForm>({
+    resolver: zodResolver(formationSchema),
+    defaultValues: initialData ? {
+      title: initialData.title,
+      description: initialData.description,
+      content: initialData.content,
+      coverImage: initialData.imageUrl,
+      imagePublicId: initialData.imagePublicId,
+      categoryId: initialData.categoryId,
+      isPremium: initialData.isPremium,
+      price: initialData.price || 0
+    } : {
+      title: '',
+      description: '',
+      content: '',
+      coverImage: '',
+      imagePublicId: '',
+      categoryId: '',
+      isPremium: false,
+      price: 0
+    }
+  })
+
+  const isPremium = watch("isPremium")
+
+  useEffect(() => {
+    if (!isPremium) {
+      setValue('price', 0)
+    }
+  }, [isPremium, setValue])
+
+  const handleCoverImageUpload = async (result: UploadResult) => {
+    if (isEditing && initialData?.imagePublicId && initialData.imagePublicId !== result.publicId) {
+      try {
+        console.log('Tentative de suppression de l\'ancienne image:', initialData.imagePublicId);
+        const deleteRes = await fetch('/api/upload/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            publicId: initialData.imagePublicId
+          })
+        });
+
+        if (!deleteRes.ok) {
+          console.error('Réponse non-ok lors de la suppression:', await deleteRes.text());
+        } else {
+          console.log('Ancienne image supprimée avec succès');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la suppression de l\'ancienne image:', error);
+      }
+    }
+
+    setValue('coverImage', result.url);
+    setValue('imagePublicId', result.publicId);
+  }
+
   const handleFormSubmit = async (data: FormationForm) => {
-    onSubmit({
-      ...data,
-      description: markdownDescription,
-      content: markdownContent,
-    })
+    setIsLoading(true);
+    try {
+      const formData = {
+        ...data,
+        authorId: user?.id,
+        description: markdownDescription,
+        content: markdownContent,
+        price: data.isPremium ? data.price : 0,
+        imageUrl: data.coverImage,
+        imagePublicId: data.imagePublicId,
+        updateVideoCoverImages: data.imagePublicId !== initialData?.imagePublicId
+      }
+
+      const res = await fetch(isEditing ? `/api/users/content/formation/${initialData.id}` : "/api/formations", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Erreur lors de la modification");
+      }
+      
+      onComplete();
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -126,20 +214,15 @@ export default function FormationBasicInfo({ initialData, onSubmit, isLoading, i
       <div>
         <label className="block text-sm font-medium mb-2">Image de couverture</label>
         <FileUpload
-          accept={{
-            'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif']
+          type="image"
+          onUploadComplete={handleCoverImageUpload}
+          onUploadError={(error: Error) => {
+            console.error('Erreur upload image:', error)
           }}
-          maxSize={5 * 1024 * 1024}
-          onUpload={(file) => uploadFile(file, 'image')}
-          value={watch("imageUrl")}
-          onChange={(url) => setValue("imageUrl", url, { 
-            shouldValidate: true,
-            shouldDirty: true
-          })}
-          previewType="image"
+          value={watch('coverImage')}
         />
-        {errors.imageUrl && (
-          <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>
+        {errors.coverImage && (
+          <p className="text-sm text-destructive mt-1">{errors.coverImage.message}</p>
         )}
       </div>
 

@@ -154,6 +154,11 @@ export default function Footer() {
                   Cookies
                 </Link>
               </li>
+              <li>
+                <Link href="/tarifs" className="text-md text-muted-foreground hover:text-foreground">
+                  Tarifs
+                </Link>
+              </li>
             </ul>
           </div>
 

@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import FileUpload from '@/app/components/ui/FileUpload'
-import { uploadFile } from '@/app/lib/upload'
+import { useAuth } from '@/app/hooks/useAuth'
+import FileUpload from '@/app/components/ui/file-upload'
+import type { UploadResult } from '@/lib/cloudinary'
 import dynamic from 'next/dynamic'
 
 const MDEditor = dynamic(
@@ -18,10 +19,19 @@ const articleSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   content: z.string().min(1, "Le contenu est requis"),
   coverImage: z.string().min(1, "L'image de couverture est requise"),
+  imagePublicId: z.string().optional(),
   categoryId: z.string().min(1, "La catégorie est requise"),
   isPremium: z.boolean(),
-  price: z.number().optional(),
-})
+  price: z.number()
+}).superRefine((data, ctx) => {
+  if (data.isPremium && data.price <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Le prix doit être supérieur à 0 pour un contenu premium",
+      path: ["price"]
+    });
+  }
+});
 
 type ArticleForm = z.infer<typeof articleSchema>
 
@@ -32,23 +42,10 @@ interface ArticleFormProps {
 
 export default function ArticleForm({ initialData, isEditing }: ArticleFormProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [markdownContent, setMarkdownContent] = useState(initialData?.content || '')
-
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<ArticleForm>({
-    resolver: zodResolver(articleSchema),
-    defaultValues: {
-      title: initialData?.title || '',
-      content: initialData?.content || '',
-      coverImage: initialData?.coverImage || '',
-      categoryId: initialData?.categoryId || '',
-      isPremium: initialData?.isPremium || false,
-      price: initialData?.price || 0,
-    }
-  })
-
-  const isPremium = watch("isPremium")
 
   useEffect(() => {
     fetch('/api/categories')
@@ -56,22 +53,51 @@ export default function ArticleForm({ initialData, isEditing }: ArticleFormProps
       .then(data => setCategories(data))
   }, [])
 
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<ArticleForm>({
+    resolver: zodResolver(articleSchema),
+    defaultValues: initialData ? {
+      title: initialData.title,
+      content: initialData.content,
+      coverImage: initialData.imageUrl,
+      imagePublicId: initialData.imagePublicId,
+      categoryId: initialData.categoryId,
+      isPremium: initialData.isPremium,
+      price: initialData.price || 0
+    } : {
+      title: '',
+      content: '',
+      coverImage: '',
+      imagePublicId: '',
+      categoryId: '',
+      isPremium: false,
+      price: 0
+    }
+  })
+
+  const isPremium = watch("isPremium")
+
+  useEffect(() => {
+    if (!isPremium) {
+      setValue('price', 0)
+    }
+  }, [isPremium, setValue])
+
   const onSubmit = async (data: ArticleForm) => {
     setIsLoading(true)
     try {
-      const res = await fetch(
-        isEditing ? `/api/users/content/article/${initialData?.id}` : "/api/articles",
-        {
-          method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...data,
-            content: markdownContent,
-          }),
-        }
-      )
+      const formData = {
+        ...data,
+        authorId: user?.id,
+        price: data.isPremium ? data.price : 0
+      }
+
+      const res = await fetch(isEditing ? `/api/users/content/article/${initialData.id}` : "/api/articles", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
 
       if (!res.ok) throw new Error("Erreur lors de la création")
       router.push("/profile/contenu")
@@ -81,6 +107,11 @@ export default function ArticleForm({ initialData, isEditing }: ArticleFormProps
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleCoverImageUpload = (result: UploadResult) => {
+    setValue('coverImage', result.url)
+    setValue('imagePublicId', result.publicId)
   }
 
   return (
@@ -109,7 +140,7 @@ export default function ArticleForm({ initialData, isEditing }: ArticleFormProps
               })
             }}
             preview="live"
-            height={500}
+            height={300}
             className="w-full"
           />
         </div>
@@ -121,17 +152,12 @@ export default function ArticleForm({ initialData, isEditing }: ArticleFormProps
       <div>
         <label className="block text-sm font-medium mb-2">Image de couverture</label>
         <FileUpload
-          accept={{
-            'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif']
+          type="image"
+          onUploadComplete={handleCoverImageUpload}
+          onUploadError={(error: Error) => {
+            console.error('Erreur upload image:', error)
           }}
-          maxSize={5 * 1024 * 1024}
-          onUpload={(file) => uploadFile(file, 'image')}
-          value={watch("coverImage")}
-          onChange={(url) => setValue("coverImage", url, { 
-            shouldValidate: true,
-            shouldDirty: true
-          })}
-          previewType="image"
+          value={watch('coverImage')}
         />
         {errors.coverImage && (
           <p className="text-sm text-destructive mt-1">{errors.coverImage.message}</p>

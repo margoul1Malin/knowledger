@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { cloudinary } from '@/lib/cloudinary-config'
 import bcrypt from 'bcryptjs'
-import { existsSync } from 'fs'
 
 export async function PATCH(req: Request) {
   try {
@@ -35,26 +33,51 @@ export async function PATCH(req: Request) {
 
     // Gestion de l'image de profil
     if (image) {
+      // Récupérer l'ancienne image pour la supprimer de Cloudinary
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { imagePublicId: true }
+      })
+
+      // Supprimer l'ancienne image de Cloudinary si elle existe
+      if (user?.imagePublicId) {
+        try {
+          await cloudinary.uploader.destroy(user.imagePublicId)
+        } catch (error) {
+          console.error('Erreur lors de la suppression de l\'ancienne image:', error)
+        }
+      }
+
+      // Convertir le fichier en buffer
       const bytes = await image.arrayBuffer()
       const buffer = Buffer.from(bytes)
-      
-      // Vérifier et créer le dossier si nécessaire
-      const uploadDir = join(process.cwd(), 'public', 'profile-pictures')
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true })
+
+      // Upload vers Cloudinary
+      const uploadResponse = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            folder: 'knowledger/profile-pictures',
+            resource_type: 'image',
+            transformation: [
+              { width: 200, height: 200, crop: 'fill' },
+              { quality: 'auto:good' },
+              { fetch_format: 'auto' }
+            ]
+          },
+          (error, result) => {
+            if (error) reject(error)
+            else resolve(result)
+          }
+        ).end(buffer)
+      })
+
+      if (!uploadResponse) {
+        throw new Error('Erreur lors de l\'upload de l\'image')
       }
-      
-      // Générer un nom de fichier unique avec l'extension
-      const fileExtension = image.name.split('.').pop()
-      const fileName = `${session.user.id}-${Date.now()}.${fileExtension}`
-      const filePath = join(uploadDir, fileName)
-      
-      // Sauvegarder l'image
-      await writeFile(filePath, buffer)
-      
-      // Mettre à jour le chemin dans la base de données
-      // Utiliser un chemin relatif pour l'accès via l'API Next.js
-      updateData.image = `/profile-pictures/${fileName}`
+
+      const { secure_url, public_id } = uploadResponse as any
+      updateData.image = secure_url
+      updateData.imagePublicId = public_id
     }
 
     // Mise à jour du mot de passe

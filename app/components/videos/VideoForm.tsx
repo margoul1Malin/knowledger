@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,8 +22,16 @@ const videoSchema = z.object({
   coverImage: z.string().min(1, "L'image de couverture est requise"),
   categoryId: z.string().min(1, "La catégorie est requise"),
   isPremium: z.boolean(),
-  price: z.number().optional(),
-})
+  price: z.number()
+}).superRefine((data, ctx) => {
+  if (data.isPremium && data.price <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Le prix doit être supérieur à 0 pour un contenu premium",
+      path: ["price"]
+    });
+  }
+});
 
 type VideoForm = z.infer<typeof videoSchema>
 
@@ -39,6 +47,12 @@ export default function VideoForm({ initialData, isEditing }: VideoFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [markdownDescription, setMarkdownDescription] = useState(initialData?.description || '')
 
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => setCategories(data))
+  }, [])
+
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<VideoForm>({
     resolver: zodResolver(videoSchema),
     defaultValues: initialData || {
@@ -48,28 +62,39 @@ export default function VideoForm({ initialData, isEditing }: VideoFormProps) {
       coverImage: '',
       categoryId: '',
       isPremium: false,
-      price: undefined
+      price: 0
     }
   })
 
   const isPremium = watch("isPremium")
 
+  useEffect(() => {
+    if (!isPremium) {
+      setValue('price', 0)
+    }
+  }, [isPremium, setValue])
+
   const onSubmit = async (data: VideoForm) => {
     setIsLoading(true)
     try {
+      const formData = {
+        ...data,
+        authorId: user?.id,
+        description: markdownDescription,
+        price: data.isPremium ? data.price : 0
+      }
+
       const res = await fetch(isEditing ? `/api/users/content/video/${initialData.id}` : "/api/videos", {
         method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...data,
-          authorId: user?.id,
-        }),
+        body: JSON.stringify(formData),
       })
 
       if (!res.ok) throw new Error("Erreur lors de la création")
       router.push("/profile/contenu")
+      router.refresh()
     } catch (error) {
       console.error(error)
     } finally {

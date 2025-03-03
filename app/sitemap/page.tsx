@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '@/app/hooks/useAuth'
 
 interface SitemapSection {
   title: string
   links: {
     href: string
     label: string
+    roles?: string[]  // Rôles autorisés à voir ce lien
   }[]
 }
 
@@ -29,15 +30,27 @@ const sitemapData: SitemapSection[] = [
       { href: '/login', label: 'Connexion' },
       { href: '/register', label: 'Inscription' },
       { href: '/profile', label: 'Profil' },
-      { href: '/profile/historique', label: 'Historique' }
+      { href: '/profile/historique', label: 'Historique', roles: ['ADMIN', 'FORMATOR', 'PREMIUM'] }
     ]
   },
   {
     title: 'Création',
     links: [
-      { href: '/create-content/article', label: 'Créer un article' },
-      { href: '/create-content/video', label: 'Créer une vidéo' },
-      { href: '/create-content/formation', label: 'Créer une formation' },
+      { 
+        href: '/create-content/article', 
+        label: 'Créer un article',
+        roles: ['ADMIN', 'FORMATOR']
+      },
+      { 
+        href: '/create-content/video', 
+        label: 'Créer une vidéo',
+        roles: ['ADMIN', 'FORMATOR']
+      },
+      { 
+        href: '/create-content/formation', 
+        label: 'Créer une formation',
+        roles: ['ADMIN', 'FORMATOR']
+      },
       { href: '/formatorquery', label: 'Devenir formateur' }
     ]
   },
@@ -49,69 +62,84 @@ const sitemapData: SitemapSection[] = [
       { href: '/legal/privacy', label: 'Politique de confidentialité' },
       { href: '/legal/cookies', label: 'Politique des cookies' }
     ]
+  },
+  {
+    title: 'Contributions',
+    links: [
+      { href: '/contributions', label: 'Mes contributions' }
+    ]
   }
 ]
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-}
+const TreeNode = ({ section, index }: { section: SitemapSection; index: number }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const { user } = useAuth()
 
-const sectionVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
-}
+  // Filtrer les liens en fonction du rôle de l'utilisateur
+  const filteredLinks = section.links.filter(link => {
+    if (!link.roles) return true // Si pas de rôles spécifiés, montrer à tous
+    return link.roles.includes(user?.role || '')
+  })
 
-const SitemapSection = ({ section, index }: { section: SitemapSection; index: number }) => {
-  const [isOpen, setIsOpen] = useState(true)
+  // Ne pas afficher la section si elle n'a pas de liens visibles
+  if (filteredLinks.length === 0) return null
 
   return (
-    <motion.div
-      variants={sectionVariants}
-      className="mb-8"
-      style={{ 
-        '--delay': `${index * 0.1}s`
-      } as any}
-    >
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full text-left mb-4 group"
-      >
-        <h2 className="text-2xl font-bold">{section.title}</h2>
-        <ChevronDownIcon 
-          className={`w-6 h-6 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
+    <div className="flex flex-col items-center">
+      {/* Ligne verticale vers le haut */}
+      {index !== 0 && (
+        <div className="w-px h-8 bg-primary/30" />
+      )}
 
-      <motion.div
-        initial={false}
-        animate={{
-          height: isOpen ? 'auto' : 0,
-          opacity: isOpen ? 1 : 0
-        }}
-        transition={{ duration: 0.3 }}
-        className="overflow-hidden"
+      {/* Point interactif */}
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-6 h-6 rounded-full border-2 transition-colors duration-300 flex items-center justify-center
+          ${isOpen ? 'bg-primary border-primary' : 'border-primary/50 hover:border-primary'}`}
+        whileHover={{ scale: 1.2 }}
+        whileTap={{ scale: 0.9 }}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {section.links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="p-4 rounded-lg border border-input hover:border-primary transition-colors duration-300 group"
-            >
-              <span className="text-foreground group-hover:text-primary transition-colors duration-300">
-                {link.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </motion.div>
-    </motion.div>
+        <span className={`text-xs font-bold ${isOpen ? 'text-primary-foreground' : 'text-primary'}`}>
+          {index + 1}
+        </span>
+      </motion.button>
+
+      {/* Titre de la section */}
+      <h2 className="mt-2 text-xl font-bold text-center">{section.title}</h2>
+
+      {/* Contenu déployable */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-4 grid gap-4 w-full max-w-xl"
+          >
+            {filteredLinks.map((link, i) => (
+              <motion.div
+                key={link.href}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Link
+                  href={link.href}
+                  className="p-4 rounded-lg border border-input bg-card hover:bg-accent hover:text-accent-foreground
+                    transition-colors duration-300 block w-full text-center shadow-sm hover:shadow-md"
+                >
+                  {link.label}
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Ligne verticale vers le bas */}
+      <div className="w-px h-8 bg-primary/30" />
+    </div>
   )
 }
 
@@ -119,23 +147,19 @@ export default function SitemapPage() {
   return (
     <div className="min-h-screen bg-background py-24">
       <div className="container mx-auto px-4">
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-          className="max-w-5xl mx-auto"
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-4xl font-bold mb-16 text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80"
         >
-          <motion.h1 
-            variants={sectionVariants}
-            className="text-4xl font-bold mb-12 text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80"
-          >
-            Plan du site
-          </motion.h1>
+          Plan du site
+        </motion.h1>
 
+        <div className="max-w-3xl mx-auto">
           {sitemapData.map((section, index) => (
-            <SitemapSection key={section.title} section={section} index={index} />
+            <TreeNode key={section.title} section={section} index={index} />
           ))}
-        </motion.div>
+        </div>
       </div>
     </div>
   )

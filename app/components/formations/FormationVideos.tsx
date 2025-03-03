@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { TrashIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import FileUpload from '@/components/ui/FileUpload'
+import FileUpload from '@/app/components/ui/file-upload'
+import type { UploadResult } from '@/lib/cloudinary'
 
 type VideoItem = {
   id: string
@@ -33,41 +34,56 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
     description: '',
     videoUrl: ''
   })
+  const [formation, setFormation] = useState<any>(null)
   const { toast } = useToast()
 
   useEffect(() => {
-    if (isEditing) {
-      // Charger les vidéos existantes
-      const loadVideos = async () => {
-        try {
-          const res = await fetch(`/api/videos?formationId=${formationId}`)
-          if (!res.ok) throw new Error('Erreur lors du chargement des vidéos')
-          const data = await res.json()
-          
-          const formattedVideos = data.items
+    // Charger les détails de la formation
+    const loadFormation = async () => {
+      try {
+        const res = await fetch(`/api/users/content/formation/${formationId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Erreur lors du chargement de la formation')
+        }
+        
+        const data = await res.json()
+        setFormation(data)
+
+        // Si nous avons des vidéos initiales, les charger directement
+        if (data.videos?.length > 0) {
+          const formattedVideos = data.videos
             .map((v: any) => ({
-              id: v.id,
-              title: v.title,
-              description: v.description,
-              videoUrl: v.videoUrl,
-              order: v.formations?.[0]?.order || 0
+              id: v.video.id,
+              title: v.video.title,
+              description: v.video.description,
+              videoUrl: v.video.videoUrl,
+              order: v.order
             }))
             .sort((a: any, b: any) => a.order - b.order)
 
           setVideos(formattedVideos)
-        } catch (error) {
-          console.error('Erreur:', error)
-          toast({
-            title: 'Erreur',
-            description: 'Impossible de charger les vidéos',
-            variant: 'destructive',
-          })
         }
+      } catch (error: any) {
+        console.error('Erreur:', error)
+        toast({
+          title: 'Erreur',
+          description: error.message || 'Impossible de charger les détails de la formation',
+          variant: 'destructive',
+        })
       }
-
-      loadVideos()
     }
-  }, [isEditing, formationId])
+
+    if (formationId) {
+      loadFormation()
+    }
+  }, [formationId])
 
   const handleAddVideo = async () => {
     if (!currentVideo.title.trim() || !currentVideo.videoUrl) {
@@ -79,8 +95,26 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
       return
     }
 
+    if (!formation) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de récupérer les détails de la formation',
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
       setIsLoading(true)
+      // Récupérer la première catégorie comme catégorie par défaut
+      const categoriesRes = await fetch('/api/categories')
+      const categoriesData = await categoriesRes.json()
+      const defaultCategoryId = categoriesData[0]?.id
+
+      if (!defaultCategoryId) {
+        throw new Error('Aucune catégorie disponible')
+      }
+
       const videoRes = await fetch('/api/videos', {
         method: 'POST',
         headers: {
@@ -89,11 +123,19 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
         body: JSON.stringify({
           title: currentVideo.title,
           description: currentVideo.description,
-          videoUrl: currentVideo.videoUrl
+          videoUrl: currentVideo.videoUrl,
+          coverImage: formation.imageUrl,
+          coverImagePublicId: formation.imagePublicId,
+          isPremium: false,
+          price: null,
+          categoryId: defaultCategoryId
         })
       })
 
-      if (!videoRes.ok) throw new Error('Erreur lors de la création de la vidéo')
+      if (!videoRes.ok) {
+        const error = await videoRes.json()
+        throw new Error(error.message || 'Erreur lors de la création de la vidéo')
+      }
 
       const video = await videoRes.json()
       if (!video?.id) throw new Error('La vidéo créée est invalide')
@@ -120,11 +162,11 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
         title: 'Succès',
         description: 'La vidéo a été ajoutée avec succès',
       })
-    } catch (error) {
-      console.error('Erreur:', error)
+    } catch (error: any) {
+      console.error('Erreur création vidéo:', error)
       toast({
         title: 'Erreur',
-        description: 'Impossible d\'ajouter la vidéo',
+        description: error.message || 'Impossible d\'ajouter la vidéo',
         variant: 'destructive',
       })
     } finally {
@@ -195,6 +237,13 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
     }
   }
 
+  const handleVideoUpload = (result: UploadResult) => {
+    setCurrentVideo(prev => ({
+      ...prev,
+      videoUrl: result.url
+    }))
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-card border border-border rounded-lg p-4">
@@ -222,36 +271,17 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
             </div>
           </div>
           <FileUpload
-            accept={{
-              'video/*': ['.mp4', '.webm']
-            }}
-            maxSize={100 * 1024 * 1024}
-            onUpload={async (file) => {
-              try {
-                const formData = new FormData()
-                formData.append('file', file)
-                formData.append('type', 'video')
-
-                const res = await fetch('/api/upload', {
-                  method: 'POST',
-                  body: formData
-                })
-
-                if (!res.ok) {
-                  const error = await res.json()
-                  throw new Error(error.message || 'Erreur lors de l\'upload')
-                }
-
-                const data = await res.json()
-                return data.url
-              } catch (error) {
-                console.error('Erreur upload:', error)
-                throw error
-              }
+            type="video"
+            onUploadComplete={handleVideoUpload}
+            onUploadError={(error: Error) => {
+              console.error('Erreur upload vidéo:', error)
+              toast({
+                title: 'Erreur',
+                description: 'Impossible d\'uploader la vidéo',
+                variant: 'destructive',
+              })
             }}
             value={currentVideo.videoUrl}
-            onChange={(url) => setCurrentVideo(prev => ({ ...prev, videoUrl: url }))}
-            previewType="video"
           />
           <Button
             onClick={handleAddVideo}

@@ -16,11 +16,19 @@ export async function PUT(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
+    const { id } = params
+    if (!id) {
+      return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
+    }
+
     const data = await req.json()
 
     // Vérifier que l'utilisateur est l'auteur de la formation ou admin
     const formation = await prisma.formation.findUnique({
-      where: { id: params.id }
+      where: { id },
+      include: {
+        videos: true
+      }
     })
 
     if (!formation) {
@@ -42,14 +50,44 @@ export async function PUT(
       ? slugify(data.title, { lower: true })
       : formation.slug
 
+    // Si l'image a changé et qu'il faut mettre à jour les images de couverture des vidéos
+    if (data.updateVideoCoverImages && formation.videos.length > 0) {
+      console.log('Mise à jour des images de couverture des vidéos');
+      // Mettre à jour les images de couverture des vidéos existantes
+      await prisma.videoFormation.updateMany({
+        where: {
+          formationId: id
+        },
+        data: {
+          coverImage: data.imageUrl
+        }
+      });
+
+      // Mettre également à jour les vidéos elles-mêmes
+      const videoIds = formation.videos.map(v => v.videoId);
+      await prisma.video.updateMany({
+        where: {
+          id: {
+            in: videoIds
+          }
+        },
+        data: {
+          coverImage: data.imageUrl
+        }
+      });
+      
+      console.log('Images de couverture mises à jour pour', formation.videos.length, 'vidéos');
+    }
+
     // Mettre à jour la formation
     const updatedFormation = await prisma.formation.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title: data.title,
         description: data.description,
         content: data.content,
         imageUrl: data.imageUrl,
+        imagePublicId: data.imagePublicId,
         isPremium: data.isPremium,
         price: data.isPremium ? data.price : null,
         categoryId: data.categoryId,
@@ -300,6 +338,65 @@ export async function DELETE(
     console.error('Erreur lors de la suppression:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la suppression' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    if (!params.id) {
+      return NextResponse.json({ error: 'ID de formation manquant' }, { status: 400 })
+    }
+
+    const formation = await prisma.formation.findUnique({
+      where: { id: params.id },
+      include: {
+        author: true,
+        category: true,
+        videos: {
+          include: {
+            video: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                videoUrl: true,
+                coverImage: true,
+                duration: true
+              }
+            }
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        }
+      }
+    })
+
+    if (!formation) {
+      return NextResponse.json({ error: 'Formation non trouvée' }, { status: 404 })
+    }
+
+    // Vérifier que l'utilisateur est l'auteur ou admin
+    if (formation.authorId !== session.user.id && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    return NextResponse.json(formation)
+  } catch (error) {
+    console.error('Erreur:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la récupération de la formation' },
       { status: 500 }
     )
   }

@@ -63,6 +63,11 @@ const menuItems = [
     icon: AcademicCapIcon,
   },
   {
+    name: 'Parcours',
+    href: '/admin/parcours',
+    icon: AcademicCapIcon,
+  },
+  {
     name: 'Pense-Bête',
     href: '/admin/todo',
     icon: LightBulbIcon,

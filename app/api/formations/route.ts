@@ -138,4 +138,28 @@ export async function GET(req: Request) {
     console.error("[FORMATIONS_GET]", error)
     return new NextResponse("Erreur interne", { status: 500 })
   }
+}
+
+export async function GETAll() {
+  try {
+    const formations = await prisma.formation.findMany({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        imageUrl: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return NextResponse.json(formations)
+  } catch (error) {
+    console.error('Erreur lors de la récupération des formations:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la récupération des formations' },
+      { status: 500 }
+    )
+  }
 } 

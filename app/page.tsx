@@ -1,11 +1,44 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, CalendarIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, VideoCameraIcon, AcademicCapIcon } from "@heroicons/react/24/outline";
 import ArticlesCarousel from '@/app/components/articles/ArticlesCarousel'
 import CodeCard from '@/app/components/ui/CodeCard'
+import RecentContentCarousel from '@/app/components/ui/RecentContentCarousel'
+import { format } from "date-fns";
 
-export default function Home() {
+interface Parcours {
+  id: string;
+  title: string;
+  description: string;
+  slug: string;
+  imageUrl: string;
+  imagePublicId?: string;
+  createdAt: string;
+}
+
+async function getRecentParcours(): Promise<Parcours[]> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const res = await fetch(`${baseUrl}/api/parcours/recent`, {
+      cache: 'no-store'
+    })
+    
+    if (!res.ok) {
+      console.error('Failed to fetch recent parcours')
+      return []
+    }
+
+    return res.json()
+  } catch (error) {
+    console.error('Error fetching recent parcours:', error)
+    return []
+  }
+}
+
+export default async function Home() {
+  const recentParcours = await getRecentParcours()
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -39,8 +72,10 @@ export default function Home() {
               </div>
             </div>
             
-            <div className="hidden lg:block flex-1">
-              <CodeCard />
+            <div className="hidden lg:flex flex-1 items-center justify-center">
+              <div className="relative">
+                <CodeCard />
+              </div>
             </div>
           </div>
         </div>
@@ -63,6 +98,101 @@ export default function Home() {
                 <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Recent Content Section */}
+      <section className="py-24">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl font-bold text-card-foreground">
+              Contenus récents
+            </h2>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <Link 
+                href="/articles"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <DocumentIcon className="h-4 w-4" />
+                Voir tous les articles
+              </Link>
+              <Link 
+                href="/videos"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <VideoCameraIcon className="h-4 w-4" />
+                Voir toutes les vidéos
+              </Link>
+              <Link 
+                href="/formations"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <AcademicCapIcon className="h-4 w-4" />
+                Voir toutes les formations
+              </Link>
+            </div>
+          </div>
+          
+          <RecentContentCarousel />
+        </div>
+      </section>
+
+      {/* Section Parcours Préférés */}
+      <section className="py-24 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
+              Nos Parcours Préférés
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Découvrez nos parcours d'apprentissage soigneusement conçus pour vous guider étape par étape.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            {recentParcours.map((parcours) => (
+              <Link
+                key={parcours.id}
+                href={`/parcours/${parcours.slug}`}
+                className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary transition-colors duration-300"
+              >
+                {/* Image avec overlay */}
+                <div className="relative aspect-video">
+                  <Image
+                    src={parcours.imageUrl}
+                    alt={parcours.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                </div>
+
+                {/* Contenu */}
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
+                    {parcours.title}
+                  </h3>
+                  <p className="text-muted-foreground line-clamp-2">
+                    {parcours.description}
+                  </p>
+                  <div className="mt-4 flex items-center text-sm text-muted-foreground">
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {format(new Date(parcours.createdAt), 'dd/MM/yyyy')}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-12 text-center">
+            <Link
+              href="/parcours"
+              className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
+            >
+              Voir tous les parcours
+              <ArrowRightIcon className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>

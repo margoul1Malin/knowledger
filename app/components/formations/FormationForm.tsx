@@ -11,65 +11,39 @@ interface FormationFormProps {
 }
 
 export default function FormationForm({ initialData, isEditing }: FormationFormProps) {
-  const router = useRouter()
   const [step, setStep] = useState(1)
-  const [formationId, setFormationId] = useState<string | null>(initialData?.id || null)
-  const [formationData, setFormationData] = useState(initialData || null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [formationId, setFormationId] = useState(initialData?.id || '')
+  const router = useRouter()
 
-  const handleBasicInfoSubmit = async (data: any) => {
-    setIsLoading(true)
-    try {
-      const res = await fetch(
-        isEditing ? `/api/users/content/formation/${initialData?.id}` : "/api/formations",
-        {
-          method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        }
-      )
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Erreur lors de la création")
-      }
-
-      const formation = await res.json()
-      setFormationId(formation.id)
-      setFormationData(data)
+  const handleBasicInfoComplete = () => {
+    if (isEditing) {
       setStep(2)
-    } catch (error: any) {
-      console.error(error)
-      alert(error.message || "Une erreur est survenue")
-    } finally {
-      setIsLoading(false)
+    } else {
+      router.push('/profile/contenu')
+      router.refresh()
     }
   }
 
-  const handleComplete = () => {
-    router.push("/profile/contenu")
+  const handleVideosComplete = () => {
+    router.push('/profile/contenu')
     router.refresh()
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-4xl mx-auto">
       {step === 1 && (
         <FormationBasicInfo
           initialData={initialData}
-          onSubmit={handleBasicInfoSubmit}
-          isLoading={isLoading}
           isEditing={isEditing}
+          onComplete={handleBasicInfoComplete}
         />
       )}
-
-      {step === 2 && formationId && (
+      {step === 2 && isEditing && (
         <FormationVideos
           formationId={formationId}
           initialVideos={initialData?.videos}
-          onComplete={handleComplete}
-          isEditing={isEditing}
+          onComplete={handleVideosComplete}
+          isEditing={true}
         />
       )}
     </div>

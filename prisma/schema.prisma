@@ -31,6 +31,7 @@ model User {
   name      String
   password  String
   image     String?
+  imagePublicId String?
   role      UserRole @default(NORMAL)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,8 +130,9 @@ model Formation {
   videos      VideoFormation[]
   purchases   Purchase[]
   history     History[]
-  ratings     Rating[]  // Nouvelle relation
+  ratings     Rating[]
   comments    Comment[]
+  parcours     FormationParcours[]
 }
 
 model VideoFormation {
@@ -328,4 +330,33 @@ model AdminSettings {
   maintenanceMode       Boolean  @default(false)
   registrationsClosed   Boolean  @default(false)
   updatedAt            DateTime @updatedAt
+}
+
+model Parcours {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  description   String
+  slug          String    @unique
+  imageUrl      String
+  imagePublicId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  formations    FormationParcours[]
+}
+
+model FormationParcours {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  order       Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  parcours    Parcours  @relation(fields: [parcoursId], references: [id])
+  parcoursId  String    @db.ObjectId
+  formation   Formation @relation(fields: [formationId], references: [id])
+  formationId String    @db.ObjectId
+
+  @@unique([parcoursId, formationId])
+  @@index([parcoursId])
+  @@index([formationId])
 } 

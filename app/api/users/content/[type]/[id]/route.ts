@@ -3,9 +3,26 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { cloudinary } from '@/lib/cloudinary-config'
+import { deleteResource } from "@/lib/cloudinary"
 import type { Article, Video, Formation, UserRole } from '@prisma/client'
 
 type ContentType = 'article' | 'video' | 'formation'
+
+interface ArticleContent {
+  imagePublicId: string | null
+  authorId: string
+}
+
+interface VideoContent {
+  videoPublicId: string | null
+  coverImagePublicId: string | null
+  authorId: string
+}
+
+interface FormationContent {
+  imagePublicId: string | null
+  authorId: string
+}
 
 export async function DELETE(
   req: Request,
@@ -251,46 +268,132 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions)
-    
-    if (!session?.user || !['ADMIN', 'FORMATOR'].includes(session.user.role as UserRole)) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    if (!session?.user) {
+      return new Response(JSON.stringify({ error: "Non autorisé" }), {
+        status: 401,
+      })
     }
 
-    const { type, id } = params
     const data = await req.json()
+    const type = params.type
+    const id = params.id
 
+    // Récupérer le contenu existant pour vérifier les publicId
+    let existingContent: ArticleContent | VideoContent | FormationContent
     switch (type as ContentType) {
       case 'article':
-        await prisma.article.update({
+        existingContent = await prisma.article.findUnique({
           where: { id },
-          data
+          select: { imagePublicId: true, authorId: true }
+        }) as ArticleContent
+        break
+      case 'video':
+        existingContent = await prisma.video.findUnique({
+          where: { id },
+          select: { videoPublicId: true, coverImagePublicId: true, authorId: true }
+        }) as VideoContent
+        break
+      case 'formation':
+        existingContent = await prisma.formation.findUnique({
+          where: { id },
+          select: { imagePublicId: true, authorId: true }
+        }) as FormationContent
+        break
+      default:
+        return new Response(JSON.stringify({ error: "Type de contenu invalide" }), {
+          status: 400,
+        })
+    }
+
+    if (!existingContent) {
+      return new Response(JSON.stringify({ error: "Contenu non trouvé" }), {
+        status: 404,
+      })
+    }
+
+    // Vérifier que l'utilisateur est l'auteur ou admin
+    if (existingContent.authorId !== session.user.id && session.user.role !== 'ADMIN') {
+      return new Response(JSON.stringify({ error: "Non autorisé" }), {
+        status: 403,
+      })
+    }
+
+    // Supprimer les anciennes ressources Cloudinary si nécessaire
+    if (type === 'article') {
+      const articleContent = existingContent as ArticleContent
+      if (data.imagePublicId && articleContent.imagePublicId && data.imagePublicId !== articleContent.imagePublicId) {
+        await cloudinary.uploader.destroy(articleContent.imagePublicId)
+      }
+    } else if (type === 'video') {
+      const videoContent = existingContent as VideoContent
+      if (data.videoPublicId && videoContent.videoPublicId && data.videoPublicId !== videoContent.videoPublicId) {
+        await cloudinary.uploader.destroy(videoContent.videoPublicId, { resource_type: 'video' })
+      }
+      if (data.coverImagePublicId && videoContent.coverImagePublicId && data.coverImagePublicId !== videoContent.coverImagePublicId) {
+        await cloudinary.uploader.destroy(videoContent.coverImagePublicId)
+      }
+    } else if (type === 'formation') {
+      const formationContent = existingContent as FormationContent
+      if (data.imagePublicId && formationContent.imagePublicId && data.imagePublicId !== formationContent.imagePublicId) {
+        await cloudinary.uploader.destroy(formationContent.imagePublicId)
+      }
+    }
+
+    // Mettre à jour le contenu
+    let updatedContent
+    switch (type as ContentType) {
+      case 'article':
+        updatedContent = await prisma.article.update({
+          where: { id },
+          data: {
+            title: data.title,
+            content: data.content,
+            imageUrl: data.coverImage,
+            imagePublicId: data.imagePublicId,
+            categoryId: data.categoryId,
+            isPremium: data.isPremium,
+            price: data.isPremium ? data.price : null
+          }
         })
         break
       case 'video':
-        await prisma.video.update({
+        updatedContent = await prisma.video.update({
           where: { id },
-          data
+          data: {
+            title: data.title,
+            description: data.description,
+            videoUrl: data.videoUrl,
+            videoPublicId: data.videoPublicId,
+            coverImage: data.coverImage,
+            coverImagePublicId: data.coverImagePublicId,
+            categoryId: data.categoryId,
+            isPremium: data.isPremium,
+            price: data.isPremium ? data.price : null
+          }
         })
         break
       case 'formation':
-        await prisma.formation.update({
+        updatedContent = await prisma.formation.update({
           where: { id },
-          data
+          data: {
+            title: data.title,
+            description: data.description,
+            content: data.content,
+            imageUrl: data.coverImage,
+            imagePublicId: data.imagePublicId,
+            categoryId: data.categoryId,
+            isPremium: data.isPremium,
+            price: data.isPremium ? data.price : null
+          }
         })
         break
-      default:
-        return NextResponse.json(
-          { error: 'Type de contenu invalide' },
-          { status: 400 }
-        )
     }
 
-    return NextResponse.json({ success: true })
+    return new Response(JSON.stringify(updatedContent))
   } catch (error) {
     console.error('[CONTENT_UPDATE]', error)
-    return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour' },
-      { status: 500 }
-    )
+    return new Response(JSON.stringify({ error: "Erreur lors de la mise à jour" }), {
+      status: 500,
+    })
   }
 } 
