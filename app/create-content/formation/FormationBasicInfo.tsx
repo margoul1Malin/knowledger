@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import FileUpload from '@/app/components/ui/FileUpload'
+import FileUpload from '@/app/components/ui/file-upload'
+import type { UploadResult } from '@/lib/cloudinary'
 import dynamic from 'next/dynamic'
 
 const formationSchema = z.object({
@@ -12,6 +13,7 @@ const formationSchema = z.object({
   description: z.string().min(1, "La description est requise"),
   content: z.string().min(1, "Le contenu est requis"),
   imageUrl: z.string().min(1, "L'image de couverture est requise"),
+  imagePublicId: z.string().min(1, "L'ID public de l'image est requis"),
   categoryId: z.string().min(1, "La catégorie est requise"),
   isPremium: z.boolean(),
   price: z.number().min(0, "Le prix doit être positif").optional(),
@@ -110,35 +112,17 @@ export default function FormationBasicInfo({ onSubmit, isLoading }: Props) {
       <div>
         <label className="block text-sm font-medium mb-2">Image de couverture</label>
         <FileUpload
-          accept={{
-            'image/png': ['.png'],
-            'image/jpeg': ['.jpg', '.jpeg'],
-            'image/gif': ['.gif']
+          type="image"
+          onUploadComplete={(result: UploadResult) => {
+            setValue("imageUrl", result.url)
+            setValue("imagePublicId", result.publicId)
           }}
-          maxSize={5 * 1024 * 1024} // 5MB
-          onUpload={async (file) => {
-            try {
-              const formData = new FormData()
-              formData.append('file', file)
-              formData.append('type', 'image')
-
-              const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-              })
-
-              if (!res.ok) throw new Error('Erreur lors de l\'upload')
-
-              const data = await res.json()
-              return data.url
-            } catch (error) {
-              console.error('Erreur upload:', error)
-              throw error
-            }
+          onUploadError={(error: Error) => {
+            console.error('Erreur upload:', error)
           }}
+          maxSize={5 * 1024 * 1024}
+          className="w-full"
           value={watch("imageUrl")}
-          onChange={(url) => setValue("imageUrl", url)}
-          previewType="image"
         />
         {errors.imageUrl && (
           <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>

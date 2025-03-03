@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import FileUpload from '@/app/components/ui/FileUpload'
-import { uploadFile } from '@/app/lib/upload'
+import { useAuth } from '@/app/hooks/useAuth'
+import FileUpload from '@/app/components/ui/file-upload'
+import type { UploadResult } from '@/lib/cloudinary'
 import dynamic from 'next/dynamic'
 
 const MDEditor = dynamic(
@@ -33,56 +34,55 @@ interface VideoFormProps {
 
 export default function VideoForm({ initialData, isEditing }: VideoFormProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [markdownDescription, setMarkdownDescription] = useState(initialData?.description || '')
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<VideoForm>({
     resolver: zodResolver(videoSchema),
-    defaultValues: {
-      title: initialData?.title || '',
-      description: initialData?.description || '',
-      videoUrl: initialData?.videoUrl || '',
-      coverImage: initialData?.coverImage || '',
-      categoryId: initialData?.categoryId || '',
-      isPremium: initialData?.isPremium || false,
-      price: initialData?.price || 0,
+    defaultValues: initialData || {
+      title: '',
+      description: '',
+      videoUrl: '',
+      coverImage: '',
+      categoryId: '',
+      isPremium: false,
+      price: undefined
     }
   })
 
   const isPremium = watch("isPremium")
 
-  useEffect(() => {
-    fetch('/api/categories')
-      .then(res => res.json())
-      .then(data => setCategories(data))
-  }, [])
-
   const onSubmit = async (data: VideoForm) => {
     setIsLoading(true)
     try {
-      const res = await fetch(
-        isEditing ? `/api/users/content/video/${initialData?.id}` : "/api/videos",
-        {
-          method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...data,
-            description: markdownDescription,
-          }),
-        }
-      )
+      const res = await fetch(isEditing ? `/api/users/content/video/${initialData.id}` : "/api/videos", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          authorId: user?.id,
+        }),
+      })
 
       if (!res.ok) throw new Error("Erreur lors de la création")
       router.push("/profile/contenu")
-      router.refresh()
     } catch (error) {
       console.error(error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleVideoUpload = (result: UploadResult) => {
+    setValue('videoUrl', result.url)
+  }
+
+  const handleCoverImageUpload = (result: UploadResult) => {
+    setValue('coverImage', result.url)
   }
 
   return (
@@ -123,14 +123,12 @@ export default function VideoForm({ initialData, isEditing }: VideoFormProps) {
       <div>
         <label className="block text-sm font-medium mb-2">Vidéo</label>
         <FileUpload
-          accept={{
-            'video/*': ['.mp4']
+          type="video"
+          onUploadComplete={handleVideoUpload}
+          onUploadError={(error: Error) => {
+            console.error('Erreur upload vidéo:', error)
           }}
-          maxSize={100 * 1024 * 1024} // 100MB
-          onUpload={(file) => uploadFile(file, 'video')}
           value={watch('videoUrl')}
-          onChange={(url) => setValue('videoUrl', url)}
-          previewType="video"
         />
         {errors.videoUrl && (
           <p className="text-sm text-destructive mt-1">{errors.videoUrl.message}</p>
@@ -140,17 +138,12 @@ export default function VideoForm({ initialData, isEditing }: VideoFormProps) {
       <div>
         <label className="block text-sm font-medium mb-2">Image de couverture</label>
         <FileUpload
-          accept={{
-            'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif']
+          type="image"
+          onUploadComplete={handleCoverImageUpload}
+          onUploadError={(error: Error) => {
+            console.error('Erreur upload image:', error)
           }}
-          maxSize={5 * 1024 * 1024}
-          onUpload={(file) => uploadFile(file, 'image')}
-          value={watch("coverImage")}
-          onChange={(url) => setValue("coverImage", url, { 
-            shouldValidate: true,
-            shouldDirty: true
-          })}
-          previewType="image"
+          value={watch('coverImage')}
         />
         {errors.coverImage && (
           <p className="text-sm text-destructive mt-1">{errors.coverImage.message}</p>

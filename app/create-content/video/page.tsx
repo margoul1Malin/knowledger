@@ -6,9 +6,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/app/hooks/useAuth'
-import FileUpload from '@/app/components/ui/FileUpload'
+import FileUpload from '@/app/components/ui/file-upload'
 import { uploadFile } from '@/app/lib/upload'
 import dynamic from 'next/dynamic'
+import type { UploadResult } from '@/lib/cloudinary'
 
 const MDEditor = dynamic(
   () => import('@uiw/react-md-editor').then((mod) => mod.default),
@@ -19,7 +20,9 @@ const videoSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   description: z.string().min(1, "La description est requise"),
   videoUrl: z.string().min(1, "La vidéo est requise"),
+  videoPublicId: z.string().min(1, "L'ID public de la vidéo est requis"),
   coverImage: z.string().min(1, "L'image de couverture est requise"),
+  coverImagePublicId: z.string().min(1, "L'ID public de l'image est requis"),
   categoryId: z.string().min(1, "La catégorie est requise"),
   isPremium: z.boolean(),
   price: z.number().optional(),
@@ -69,6 +72,16 @@ export default function CreateVideo() {
     }
   }
 
+  const handleVideoUpload = (result: UploadResult) => {
+    setValue('videoUrl', result.url)
+    setValue('videoPublicId', result.publicId)
+  }
+
+  const handleCoverImageUpload = (result: UploadResult) => {
+    setValue('coverImage', result.url)
+    setValue('coverImagePublicId', result.publicId)
+  }
+
   return (
     <div className="min-h-screen bg-background pt-24">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -111,14 +124,12 @@ export default function CreateVideo() {
           <div>
             <label className="block text-sm font-medium mb-2">Vidéo</label>
             <FileUpload
-              accept={{
-                'video/*': ['.mp4']
+              type="video"
+              onUploadComplete={handleVideoUpload}
+              onUploadError={(error) => {
+                console.error('Erreur upload vidéo:', error)
               }}
-              maxSize={100 * 1024 * 1024} // 100MB
-              onUpload={(file) => uploadFile(file, 'video')}
               value={watch('videoUrl')}
-              onChange={(url) => setValue('videoUrl', url)}
-              previewType="video"
             />
             {errors.videoUrl && (
               <p className="text-sm text-destructive mt-1">{errors.videoUrl.message}</p>
@@ -128,17 +139,12 @@ export default function CreateVideo() {
           <div>
             <label className="block text-sm font-medium mb-2">Image de couverture</label>
             <FileUpload
-              accept={{
-                'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif']
+              type="image"
+              onUploadComplete={handleCoverImageUpload}
+              onUploadError={(error) => {
+                console.error('Erreur upload image:', error)
               }}
-              maxSize={5 * 1024 * 1024}
-              onUpload={(file) => uploadFile(file, 'image')}
               value={watch("coverImage")}
-              onChange={(url) => setValue("coverImage", url, { 
-                shouldValidate: true,
-                shouldDirty: true
-              })}
-              previewType="image"
             />
             {errors.coverImage && (
               <p className="text-sm text-destructive mt-1">{errors.coverImage.message}</p>

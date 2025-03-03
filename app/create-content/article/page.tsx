@@ -6,9 +6,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/app/hooks/useAuth'
-import FileUpload from '@/app/components/ui/FileUpload'
-import { uploadFile } from '@/app/lib/upload'
+import FileUpload from '@/app/components/ui/file-upload'
 import dynamic from 'next/dynamic'
+import type { UploadResult } from '@/lib/cloudinary'
 
 // Import dynamique de l'éditeur Markdown pour éviter les erreurs SSR
 const MDEditor = dynamic(
@@ -20,6 +20,7 @@ const articleSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   content: z.string().min(1, "Le contenu est requis"),
   imageUrl: z.string().min(1, "L'image de couverture est requise"),
+  imagePublicId: z.string().min(1, "L'ID public de l'image est requis"),
   categoryId: z.string().min(1, "La catégorie est requise"),
   isPremium: z.boolean(),
   price: z.number().optional(),
@@ -56,7 +57,7 @@ export default function CreateArticle() {
         },
         body: JSON.stringify({
           ...data,
-          content: markdownContent, // Utiliser le contenu Markdown
+          content: markdownContent,
           authorId: user?.id,
         }),
       })
@@ -68,6 +69,11 @@ export default function CreateArticle() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleImageUpload = (result: UploadResult) => {
+    setValue('imageUrl', result.url)
+    setValue('imagePublicId', result.publicId)
   }
 
   return (
@@ -112,14 +118,12 @@ export default function CreateArticle() {
           <div>
             <label className="block text-sm font-medium mb-2">Image de couverture</label>
             <FileUpload
-              accept={{
-                'image/*': ['.png', '.jpg', '.jpeg', '.gif']
+              type="image"
+              onUploadComplete={handleImageUpload}
+              onUploadError={(error) => {
+                console.error('Erreur upload:', error)
               }}
-              maxSize={5 * 1024 * 1024} // 5MB
-              onUpload={(file) => uploadFile(file, 'image')}
               value={watch('imageUrl')}
-              onChange={(url) => setValue('imageUrl', url)}
-              previewType="image"
             />
             {errors.imageUrl && (
               <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>

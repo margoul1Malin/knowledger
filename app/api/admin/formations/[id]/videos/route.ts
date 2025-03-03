@@ -49,7 +49,9 @@ export async function POST(
             title: video.title,
             description: video.description,
             videoUrl: video.videoUrl,
+            videoPublicId: video.videoPublicId,
             coverImage: formation.imageUrl,
+            coverImagePublicId: formation.imagePublicId,
             authorId: session.user.id,
             categoryId: formation.categoryId,
             slug: `${video.title}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')

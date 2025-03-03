@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { cloudinary } from '@/lib/cloudinary-config'
 
 export async function DELETE(
   req: Request,
@@ -12,6 +13,31 @@ export async function DELETE(
     
     if (!session || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Récupérer l'article pour avoir le publicId de l'image
+    const article = await prisma.article.findUnique({
+      where: { id: params.id },
+      select: {
+        imagePublicId: true
+      }
+    })
+
+    if (!article) {
+      return NextResponse.json({ error: 'Article non trouvé' }, { status: 404 })
+    }
+
+    // Supprimer l'image de Cloudinary si elle existe
+    if (article.imagePublicId) {
+      try {
+        console.log('Suppression de l\'image Cloudinary:', article.imagePublicId)
+        await cloudinary.uploader.destroy(article.imagePublicId, {
+          resource_type: 'image'
+        })
+      } catch (cloudinaryError) {
+        console.error('Erreur lors de la suppression Cloudinary:', cloudinaryError)
+        // On continue même si la suppression Cloudinary échoue
+      }
     }
 
     // Supprimer les achats

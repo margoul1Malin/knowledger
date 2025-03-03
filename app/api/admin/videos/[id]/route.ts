@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { cloudinary } from '@/lib/cloudinary-config'
 
 export async function DELETE(
   req: Request,
@@ -12,6 +13,38 @@ export async function DELETE(
     
     if (!session || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Récupérer la vidéo pour avoir les publicId
+    const video = await prisma.video.findUnique({
+      where: { id: params.id },
+      select: {
+        videoPublicId: true,
+        coverImagePublicId: true
+      }
+    })
+
+    if (!video) {
+      return NextResponse.json({ error: 'Vidéo non trouvée' }, { status: 404 })
+    }
+
+    // Supprimer les ressources de Cloudinary
+    try {
+      if (video.videoPublicId) {
+        console.log('Suppression de la vidéo Cloudinary:', video.videoPublicId)
+        await cloudinary.uploader.destroy(video.videoPublicId, {
+          resource_type: 'video'
+        })
+      }
+      if (video.coverImagePublicId) {
+        console.log('Suppression de l\'image de couverture Cloudinary:', video.coverImagePublicId)
+        await cloudinary.uploader.destroy(video.coverImagePublicId, {
+          resource_type: 'image'
+        })
+      }
+    } catch (cloudinaryError) {
+      console.error('Erreur lors de la suppression Cloudinary:', cloudinaryError)
+      // On continue même si la suppression Cloudinary échoue
     }
 
     // Supprimer les relations VideoFormation

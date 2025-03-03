@@ -70,6 +70,7 @@ model Article {
   content     String
   slug        String   @unique
   imageUrl    String?
+  imagePublicId String?
   isPremium   Boolean  @default(false)
   price       Float?
   createdAt   DateTime @default(now())
@@ -88,7 +89,9 @@ model Video {
   title       String
   description String
   videoUrl    String
+  videoPublicId String?
   coverImage  String
+  coverImagePublicId String?
   slug        String   @unique
   isPremium   Boolean  @default(false)
   price       Float?
@@ -113,6 +116,7 @@ model Formation {
   content     String
   slug        String    @unique
   imageUrl    String
+  imagePublicId String?
   isPremium   Boolean   @default(false)
   price       Float?
   duration    Float?    // Durée totale en minutes
@@ -133,12 +137,14 @@ model VideoFormation {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   order       Int
   coverImage  String?
+  coverImagePublicId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   formation   Formation @relation(fields: [formationId], references: [id])
   formationId String    @db.ObjectId
   video       Video     @relation(fields: [videoId], references: [id])
   videoId     String    @db.ObjectId
+  videoPublicId String?
 
   @@unique([formationId, videoId])
   @@unique([formationId, order])

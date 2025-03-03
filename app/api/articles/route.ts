@@ -27,6 +27,7 @@ export async function POST(req: Request) {
         title: data.title,
         content: data.content,
         imageUrl: data.imageUrl,
+        imagePublicId: data.imagePublicId,
         isPremium: data.isPremium,
         price: data.price,
         slug: uniqueSlug,

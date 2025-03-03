@@ -105,9 +105,11 @@ export async function POST(request: Request) {
         title: data.title,
         description: data.description,
         videoUrl: data.videoUrl,
-        coverImage: data.coverImage || data.videoUrl.replace(/\.[^/.]+$/, '.jpg'),
-        isPremium: false,
-        price: null,
+        videoPublicId: data.videoPublicId,
+        coverImage: data.coverImage,
+        coverImagePublicId: data.coverImagePublicId,
+        isPremium: data.isPremium || false,
+        price: data.price || null,
         slug: uniqueSlug,
         author: {
           connect: {

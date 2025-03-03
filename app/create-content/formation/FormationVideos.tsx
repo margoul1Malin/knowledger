@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
 import { PlusIcon, XMarkIcon, Bars3Icon } from '@heroicons/react/24/outline'
-import FileUpload from '@/app/components/ui/FileUpload'
+import FileUpload from '@/app/components/ui/file-upload'
+import type { UploadResult } from '@/lib/cloudinary'
 import { useAuth } from '@/app/hooks/useAuth'
 
 type VideoItem = {
@@ -11,6 +12,7 @@ type VideoItem = {
   title: string
   description: string
   videoUrl: string
+  videoPublicId: string
   order: number
 }
 
@@ -34,6 +36,7 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
           title: currentVideo.title || '',
           description: currentVideo.description || '',
           videoUrl: currentVideo.videoUrl || '',
+          videoPublicId: currentVideo.videoPublicId || '',
           order: videos.length
         }
       ])
@@ -75,6 +78,7 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
     try {
       const videosToSend = videos.map((video) => ({
         videoUrl: video.videoUrl,
+        videoPublicId: video.videoPublicId,
         title: video.title,
         description: video.description,
         order: video.order
@@ -123,33 +127,20 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
             rows={2}
           />
           <FileUpload
-            accept={{
-              'video/*': ['.mp4', '.webm']
+            type="video"
+            onUploadComplete={(result: UploadResult) => {
+              setCurrentVideo({
+                ...currentVideo,
+                videoUrl: result.url,
+                videoPublicId: result.publicId
+              })
+            }}
+            onUploadError={(error: Error) => {
+              console.error('Erreur upload:', error)
             }}
             maxSize={100 * 1024 * 1024}
-            onUpload={async (file) => {
-              try {
-                const formData = new FormData()
-                formData.append('file', file)
-                formData.append('type', 'video')
-
-                const res = await fetch('/api/upload', {
-                  method: 'POST',
-                  body: formData
-                })
-
-                if (!res.ok) throw new Error('Erreur lors de l\'upload')
-
-                const data = await res.json()
-                return data.url
-              } catch (error) {
-                console.error('Erreur upload:', error)
-                throw error
-              }
-            }}
+            className="w-full"
             value={currentVideo.videoUrl}
-            onChange={(url) => setCurrentVideo({ ...currentVideo, videoUrl: url })}
-            previewType="video"
           />
           <button
             type="button"
