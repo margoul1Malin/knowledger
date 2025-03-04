@@ -10,7 +10,7 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
+    if (!session?.user?.role || !['ADMIN', 'FORMATOR'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
@@ -24,12 +24,9 @@ export async function POST(
       )
     }
 
-    // Attendre l'ID et le convertir en string
-    const formationId = params.id
-
     // Récupérer la formation pour son image de couverture
     const formation = await prisma.formation.findUnique({
-      where: { id: formationId }
+      where: { id: params.id }
     })
 
     if (!formation) {
@@ -42,26 +39,42 @@ export async function POST(
     })
 
     try {
+      let createdVideos = [];
+
       // D'abord créer les vidéos
-      const videoPromises = videos.map(async (video) => {
-        return prisma.video.create({
-          data: {
-            title: video.title,
-            description: video.description,
-            videoUrl: video.videoUrl,
-            videoPublicId: video.videoPublicId,
-            coverImage: formation.imageUrl,
-            coverImagePublicId: formation.imagePublicId,
-            authorId: session.user.id,
-            categoryId: formation.categoryId,
-            slug: `${video.title}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      for (const video of videos) {
+        try {
+          const createdVideo = await prisma.video.create({
+            data: {
+              title: video.title,
+              description: video.description,
+              videoUrl: video.videoUrl,
+              videoPublicId: video.videoPublicId,
+              coverImage: formation.imageUrl,
+              coverImagePublicId: formation.imagePublicId,
+              authorId: session.user.id,
+              categoryId: formation.categoryId,
+              slug: `${video.title}-${Date.now()}-${Math.random().toString(36).substring(7)}`.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+            }
+          });
+          createdVideos.push(createdVideo);
+        } catch (error) {
+          console.error('Erreur lors de la création de la vidéo:', error);
+          // En cas d'erreur, supprimer les vidéos déjà créées
+          if (createdVideos.length > 0) {
+            await prisma.video.deleteMany({
+              where: {
+                id: {
+                  in: createdVideos.map(v => v.id)
+                }
+              }
+            });
           }
-        })
-      })
+          throw error;
+        }
+      }
 
-      const createdVideos = await Promise.all(videoPromises)
-
-      // Ensuite créer les VideoFormation
+      // Ensuite créer les VideoFormation avec orderId
       const videoFormations = await Promise.all(
         createdVideos.map((video, index) => {
           return prisma.videoFormation.create({
@@ -69,7 +82,9 @@ export async function POST(
               formationId: formation.id,
               videoId: video.id,
               order: index,
-              coverImage: formation.imageUrl
+              orderId: index + 1,
+              coverImage: formation.imageUrl,
+              videoPublicId: video.videoPublicId
             }
           })
         })

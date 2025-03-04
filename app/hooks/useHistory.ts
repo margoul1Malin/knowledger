@@ -1,7 +1,14 @@
 import { useEffect } from 'react'
 import { useAuth } from './useAuth'
 
-export function useHistory(contentId: string, contentType: string) {
+interface UseHistoryProps {
+  contentId: string
+  contentType: string
+  formationId?: string
+  timestamp?: number
+}
+
+export function useHistory({ contentId, contentType, formationId, timestamp = 0 }: UseHistoryProps) {
   const { user } = useAuth()
 
   useEffect(() => {
@@ -18,8 +25,10 @@ export function useHistory(contentId: string, contentType: string) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            contentId,
-            contentType
+            itemId: contentId,
+            type: contentType,
+            formationId,
+            timestamp
           })
         })
       } catch (error) {
@@ -28,5 +37,5 @@ export function useHistory(contentId: string, contentType: string) {
     }
 
     addToHistory()
-  }, [contentId, contentType, user])
+  }, [contentId, contentType, formationId, timestamp, user])
 } 

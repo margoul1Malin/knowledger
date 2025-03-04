@@ -18,6 +18,7 @@ import { PlayIcon } from '@heroicons/react/24/outline'
 
 interface VideoFormation {
   order: number;
+  orderId: number;
   video: {
     id: string;
     title: string;
@@ -35,14 +36,12 @@ export default function FormationContent({ formation: initialFormation }: { form
   const [formation, setFormation] = useState(initialFormation)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
+  const [currentOrderId, setCurrentOrderId] = useState(1)
   const [showRatingPrompt, setShowRatingPrompt] = useState(false)
   const [userRating, setUserRating] = useState<number | null>(null)
   const [totalRatings, setTotalRatings] = useState(0)
   const [averageRating, setAverageRating] = useState(0)
   const { toast } = useToast()
-  const videoParam = searchParams.get('video')
-  const timeParam = searchParams.get('t')
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -92,15 +91,15 @@ export default function FormationContent({ formation: initialFormation }: { form
   }, [formation.slug, formation.canAccess])
 
   useEffect(() => {
-    if (videoParam) {
-      const videoIndex = formation.videos.findIndex(
-        (v: VideoFormation) => v.order === parseInt(videoParam)
-      )
-      if (videoIndex !== -1) {
-        setCurrentVideoIndex(videoIndex)
+    const videoIndex = searchParams.get('videoIndex')
+    if (videoIndex) {
+      // Convertir en nombre et s'assurer que c'est un orderId valide
+      const orderId = parseInt(videoIndex)
+      if (!isNaN(orderId) && orderId > 0) {
+        setCurrentOrderId(orderId)
       }
     }
-  }, [videoParam, formation.videos])
+  }, [searchParams])
 
   const handleRate = async (rating: number) => {
     try {
@@ -143,18 +142,18 @@ export default function FormationContent({ formation: initialFormation }: { form
     }
   }, [formation.canAccess, userRating])
 
-  const handleVideoSelect = (index: number) => {
-    const video = formation.videos[index]
-    setCurrentVideoIndex(index)
+  const handleVideoSelect = (orderId: number) => {
+    setCurrentOrderId(orderId)
     
-    // Mettre à jour l'URL avec le nouvel ordre de la vidéo
+    // Mettre à jour l'URL avec l'orderId
     const params = new URLSearchParams(searchParams)
-    params.set('video', video.order.toString())
+    params.set('videoIndex', orderId.toString())
     router.push(`${pathname}?${params.toString()}`)
   }
 
-  // Trier les vidéos par ordre
-  const sortedVideos = [...formation.videos].sort((a, b) => a.order - b.order)
+  // Trier les vidéos par orderId et trouver la vidéo actuelle
+  const sortedVideos = [...formation.videos].sort((a, b) => a.orderId - b.orderId)
+  const currentVideo = sortedVideos.find(v => v.orderId === currentOrderId)?.video
 
   if (isLoading) {
     return <div>Chargement...</div>
@@ -184,8 +183,6 @@ export default function FormationContent({ formation: initialFormation }: { form
       </>
     )
   }
-
-  const currentVideo = formation.videos[currentVideoIndex]?.video
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -248,13 +245,13 @@ export default function FormationContent({ formation: initialFormation }: { form
             <div className="bg-card rounded-lg border border-border p-4">
               <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
               <div className="space-y-2">
-                {sortedVideos.map((video: VideoFormation, index: number) => (
+                {sortedVideos.map((video: VideoFormation) => (
                   <button
                     key={video.video.id}
-                    onClick={() => handleVideoSelect(index)}
+                    onClick={() => handleVideoSelect(video.orderId)}
                     className={cn(
                       "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
-                      currentVideoIndex === index
+                      currentOrderId === video.orderId
                         ? "bg-primary/10 text-primary"
                         : "hover:bg-muted"
                     )}
@@ -330,13 +327,13 @@ export default function FormationContent({ formation: initialFormation }: { form
           <div className="bg-card rounded-lg border border-border p-4 sticky top-24">
             <h2 className="font-semibold mb-4">Vidéos de la formation</h2>
             <div className="space-y-2">
-              {sortedVideos.map((video: VideoFormation, index: number) => (
+              {sortedVideos.map((video: VideoFormation) => (
                 <button
                   key={video.video.id}
-                  onClick={() => handleVideoSelect(index)}
+                  onClick={() => handleVideoSelect(video.orderId)}
                   className={cn(
                     "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
-                    currentVideoIndex === index
+                    currentOrderId === video.orderId
                       ? "bg-primary/10 text-primary"
                       : "hover:bg-muted"
                   )}

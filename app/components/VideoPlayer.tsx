@@ -132,6 +132,8 @@ export default function VideoPlayer({ url, videoId, onDurationChange }: Props) {
       if (data.success) {
         console.log('Sauvegarde réussie:', data)
         setLastSavedTime(currentTime)
+        // Émettre un événement pour notifier la mise à jour de l'historique
+        window.dispatchEvent(new Event('history-updated'))
       } else {
         console.error('Erreur dans la réponse:', data.error)
       }

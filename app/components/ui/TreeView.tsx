@@ -4,17 +4,19 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, Circle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export interface TreeNode {
   title: string
+  progress: number
+  isValidated?: boolean
   links?: {
     href: string
     label: string
     roles?: string[]
-    progress?: number // 0-100
+    progress: number
   }[]
   children?: TreeNode[]
-  progress?: number // 0-100
 }
 
 interface TreeViewProps {
@@ -31,29 +33,28 @@ interface TreeNodeComponentProps {
 }
 
 const TreeNodeComponent = ({ node, index, level = 0, userRole }: TreeNodeComponentProps) => {
-  const [isOpen, setIsOpen] = useState(level < 1) // Déplié par défaut pour les niveaux 0 et 1
+  const [isOpen, setIsOpen] = useState(level < 1)
 
-  // Filtrer les liens en fonction du rôle de l'utilisateur
   const filteredLinks = node.links?.filter(link => {
     if (!link.roles) return true
     return link.roles.includes(userRole || '')
   }) || []
 
-  // Vérifier si le nœud a du contenu à afficher
   const hasContent = (filteredLinks.length > 0) || (node.children && node.children.length > 0)
   if (!hasContent) return null
 
-  return (
-    <div className="flex flex-col items-center">
-      {/* Ligne verticale vers le haut */}
-      {index !== 0 && (
-        <div className="w-px h-8 bg-primary/30" />
-      )}
+  const hasValidAccess = !node.links?.[0]?.roles || node.links[0].roles.includes(userRole || '')
 
+  return (
+    <div className={cn(
+      "relative flex flex-col items-center",
+      level > 0 && "ml-6",
+      level > 0 && "before:absolute before:top-0 before:bottom-0 before:left-[-24px] before:w-px before:bg-primary/30"
+    )}>
       {/* Point interactif avec progression */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-6 h-6 rounded-full border-2 transition-colors duration-300 flex items-center justify-center relative
+        className={`w-6 h-6 rounded-full border-2 transition-colors duration-300 flex items-center justify-center relative z-10 bg-background
           ${isOpen ? 'bg-primary border-primary' : 'border-primary/50 hover:border-primary'}`}
         whileHover={{ scale: 1.2 }}
         whileTap={{ scale: 0.9 }}
@@ -68,12 +69,60 @@ const TreeNodeComponent = ({ node, index, level = 0, userRole }: TreeNodeCompone
 
       {/* Titre de la section avec progression */}
       <div className="mt-2 text-center">
-        <h2 className={`${level === 0 ? 'text-3xl' : 'text-xl'} font-bold`}>{node.title}</h2>
-        {node.progress !== undefined && node.progress < 100 && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Progression : {Math.round(node.progress)}%
-          </p>
-        )}
+        <div className="flex items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "truncate",
+                level === 0 && "text-5xl font-bold",
+                level === 1 && "text-2xl font-semibold",
+                level === 2 && "text-base font-medium"
+              )}>
+                {node.title}
+              </span>
+              {node.isValidated && (
+                <span className="text-green-500">✓</span>
+              )}
+            </div>
+            {node.links && node.links.map((link, index) => (
+              hasValidAccess ? (
+                <Link
+                  key={index}
+                  href={link.href}
+                  className={cn(
+                    "text-sm text-muted-foreground hover:text-primary transition-colors",
+                    !hasValidAccess && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <span
+                  key={index}
+                  className="text-sm text-muted-foreground opacity-50 cursor-not-allowed"
+                >
+                  {link.label} (Premium)
+                </span>
+              )
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  node.isValidated
+                    ? "bg-green-500"
+                    : "bg-primary"
+                )}
+                style={{ width: `${node.progress}%` }}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground w-9">
+              {Math.round(node.progress)}%
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Contenu déployable */}
@@ -101,11 +150,11 @@ const TreeNodeComponent = ({ node, index, level = 0, userRole }: TreeNodeCompone
                 >
                   <span className="flex items-center justify-center gap-2">
                     {link.label}
-                    {link.progress === 100 ? (
+                    {node.isValidated ? (
                       <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    ) : link.progress !== undefined ? (
+                    ) : (
                       <span className="text-sm text-muted-foreground">({Math.round(link.progress)}%)</span>
-                    ) : null}
+                    )}
                   </span>
                 </Link>
               </motion.div>
@@ -124,9 +173,6 @@ const TreeNodeComponent = ({ node, index, level = 0, userRole }: TreeNodeCompone
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Ligne verticale vers le bas */}
-      <div className="w-px h-8 bg-primary/30" />
     </div>
   )
 }

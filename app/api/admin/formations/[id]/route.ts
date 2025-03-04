@@ -90,6 +90,11 @@ export async function DELETE(
 
     // Supprimer toutes les relations et données en une seule transaction
     await prisma.$transaction([
+      // Supprimer les relations avec les parcours
+      prisma.formationParcours.deleteMany({
+        where: { formationId: params.id }
+      }),
+
       // Supprimer les relations VideoFormation
       prisma.videoFormation.deleteMany({
         where: { formationId: params.id }

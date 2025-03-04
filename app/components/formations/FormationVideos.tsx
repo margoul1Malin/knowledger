@@ -140,6 +140,8 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
       const video = await videoRes.json()
       if (!video?.id) throw new Error('La vidéo créée est invalide')
 
+      // Ajouter la vidéo à la fin de la liste avec un ordre séquentiel
+      const maxOrder = Math.max(...videos.map(v => v.order), -1)
       setVideos(prev => [
         ...prev,
         {
@@ -147,7 +149,7 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
           title: video.title || currentVideo.title,
           description: video.description || currentVideo.description || '',
           videoUrl: video.videoUrl || currentVideo.videoUrl,
-          order: prev.length
+          order: maxOrder + 1
         }
       ])
 
@@ -177,6 +179,7 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
   const handleRemoveVideo = (id: string) => {
     setVideos(prev => {
       const filtered = prev.filter(v => v.id !== id)
+      // Réorganiser les ordres pour éviter les trous
       return filtered.map((v, index) => ({ ...v, order: index }))
     })
   }
@@ -188,6 +191,7 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
     const [reorderedItem] = items.splice(result.source.index, 1)
     items.splice(result.destination.index, 0, reorderedItem)
 
+    // Réassigner les ordres de manière séquentielle
     const reorderedItems = items.map((item, index) => ({
       ...item,
       order: index
@@ -208,13 +212,15 @@ export default function FormationVideos({ formationId, initialVideos = [], onCom
 
     setIsLoading(true)
     try {
-      // Mettre à jour directement les vidéos sans supprimer les existantes
+      // S'assurer que les vidéos sont triées par ordre avant l'envoi
+      const sortedVideos = [...videos].sort((a, b) => a.order - b.order)
+      
       const res = await fetch(`/api/users/content/formation/${formationId}/videos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ videos })
+        body: JSON.stringify({ videos: sortedVideos })
       })
 
       if (!res.ok) throw new Error('Erreur lors de la sauvegarde des vidéos')

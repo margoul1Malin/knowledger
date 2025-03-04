@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { PlusIcon, XMarkIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import FileUpload from '@/app/components/ui/file-upload'
 import type { UploadResult } from '@/lib/cloudinary'
@@ -14,6 +14,7 @@ type VideoItem = {
   videoUrl: string
   videoPublicId: string
   order: number
+  orderId: number
 }
 
 type Props = {
@@ -29,6 +30,7 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
 
   const handleAddVideo = () => {
     if (currentVideo.title && currentVideo.videoUrl) {
+      const maxOrderId = Math.max(...videos.map(v => v.orderId || 0), 0)
       setVideos([
         ...videos,
         {
@@ -37,7 +39,8 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
           description: currentVideo.description || '',
           videoUrl: currentVideo.videoUrl || '',
           videoPublicId: currentVideo.videoPublicId || '',
-          order: videos.length
+          order: videos.length,
+          orderId: maxOrderId + 1
         }
       ])
       setCurrentVideo({})
@@ -81,7 +84,8 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
         videoPublicId: video.videoPublicId,
         title: video.title,
         description: video.description,
-        order: video.order
+        order: video.order,
+        orderId: video.orderId
       }))
 
       const res = await fetch(`/api/admin/formations/${formationId}/videos`, {
@@ -157,13 +161,7 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="bg-card border border-border rounded-lg p-4">
           <h3 className="font-medium mb-4">Vidéos de la formation (glisser-déposer pour réorganiser)</h3>
-          <Droppable 
-            droppableId="videos-list"
-            isCombineEnabled={false}
-            isDropDisabled={false}
-            ignoreContainerClipping={false}
-            type="video"
-          >
+          <Droppable droppableId="videos-list">
             {(provided) => (
               <div
                 {...provided.droppableProps}
@@ -175,7 +173,6 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
                     key={video.id}
                     draggableId={video.id}
                     index={index}
-                    isDragDisabled={false}
                   >
                     {(provided, snapshot) => (
                       <div
@@ -196,7 +193,7 @@ export default function FormationVideos({ formationId, onComplete }: Props) {
                             {video.description}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Ordre: {video.order + 1}
+                            Ordre séquentiel: {video.orderId}
                           </p>
                         </div>
                         <button

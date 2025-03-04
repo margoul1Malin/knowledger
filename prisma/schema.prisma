@@ -138,6 +138,7 @@ model Formation {
 model VideoFormation {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   order       Int
+  orderId     Int       @default(0)
   coverImage  String?
   coverImagePublicId String?
   createdAt   DateTime  @default(now())
@@ -150,6 +151,7 @@ model VideoFormation {
 
   @@unique([formationId, videoId])
   @@unique([formationId, order])
+  @@unique([formationId, orderId])
 }
 
 model Purchase {

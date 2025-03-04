@@ -11,6 +11,7 @@ interface HistoryItem {
   timestamp: number
   lastViewedAt: string
   video?: {
+    id: string
     title: string
     coverImage: string
     slug: string
@@ -49,9 +50,9 @@ export default function HistorySection() {
       const data = await response.json()
       
       if (data.success && Array.isArray(data.data)) {
-        // Filtrer pour ne garder que les vidéos qui ne font pas partie d'une formation
+        // Filtrer pour ne garder que les vidéos et utiliser directement l'ordre retourné par l'API
         const filteredData = data.data.filter((item: HistoryItem) => 
-          item.type === 'video' && !item.video?.formation
+          item.type === 'video' && item.video
         )
         setHistory(filteredData)
         setError(null)
@@ -191,7 +192,7 @@ export default function HistorySection() {
 
             // Déterminer l'URL de redirection
             const href = item.type === 'video' && item.video?.formation
-              ? `/formations/${item.video.formation.slug}?video=${item.video.formation.videoOrder}&t=${item.timestamp}`
+              ? `/formations/${item.video.formation.slug}?videoIndex=${item.video.formation.videoOrder}&t=${item.timestamp}`
               : `/${item.type}s/${content.slug}?t=${item.timestamp}`
 
             return (
